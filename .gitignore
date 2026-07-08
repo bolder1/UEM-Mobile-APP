@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# personal reference screenshots, not part of the app
+/Reference
