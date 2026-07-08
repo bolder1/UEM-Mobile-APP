@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Shield, Power, Eye, Check, X, Lock } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -148,7 +148,7 @@ function BadgeInner({ icon, label }: { icon: React.ReactNode; label: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 10 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 14, paddingBottom: 4 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logo: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center' },
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   copy: { paddingHorizontal: 28, paddingTop: 28, alignItems: 'center' },
   title: { fontSize: 24, textAlign: 'center', marginBottom: 10, lineHeight: 30 },
   subtitle: { fontSize: 14.5, textAlign: 'center', lineHeight: 22 },
-  footer: { paddingHorizontal: 24, gap: 18 },
+  footer: { paddingHorizontal: 24, paddingTop: 22, paddingBottom: Platform.OS === 'ios' ? 14 : 22, gap: 18 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { height: 6, borderRadius: 99 },
 });

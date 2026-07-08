@@ -136,7 +136,7 @@ function StepRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 24 },
+  root: { flex: 1, paddingHorizontal: 24, width: '100%', maxWidth: 480, alignSelf: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 26 },
   badgeWrap: { width: 150, height: 150, alignItems: 'center', justifyContent: 'center' },
   badgeCircle: {
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   textBlock: { alignItems: 'center' },
   h1: { fontSize: 22, marginBottom: 8, textAlign: 'center' },
   p: { fontSize: 13.5, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
-  stepsCard: { width: '100%', paddingHorizontal: 18, paddingVertical: 4 },
+  stepsCard: { width: '100%', paddingHorizontal: 16, paddingVertical: 8 },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   stepDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   stepDotOutline: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
