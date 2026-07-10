@@ -1,4 +1,6 @@
-// Ported 1:1 from `UEM Companion.dc.html` :root / [data-theme="dark"] CSS variables.
+// Ported 1:1 from `UEM Companion.dc.html` :root / [data-theme="dark"] CSS variables,
+// then split into a brand-neutral base plus a swappable brand accent layer so the
+// app can offer more than one brand theme (see BRAND_PALETTES below).
 
 export interface ColorScheme {
   primary: string;
@@ -43,10 +45,20 @@ export interface ColorScheme {
   white: string;
 }
 
-export const lightColors: ColorScheme = {
-  primary: '#0052CC',
-  primaryStrong: '#003D99',
-  primaryTint: '#E7EEFB',
+export type BrandTheme = 'orange' | 'blue';
+
+export const BRAND_THEME_META: Record<BrandTheme, { label: string; swatch: string }> = {
+  orange: { label: 'Classic Orange', swatch: '#EB5424' },
+  blue: { label: 'DLP Blue', swatch: '#0052CC' },
+};
+
+// Brand-neutral base: surfaces, text, borders, and the fixed semantic colors
+// (success/danger/amber/info/violet never change with brand — only the
+// primary accent family and the hero card do).
+type BrandTokens = Pick<ColorScheme, 'primary' | 'primaryStrong' | 'primaryTint' | 'heroBg'>;
+type BaseTokens = Omit<ColorScheme, keyof BrandTokens>;
+
+const baseLight: BaseTokens = {
   bg: '#F6F7F8',
   canvas: '#E7E9ED',
   surface: '#FFFFFF',
@@ -75,8 +87,6 @@ export const lightColors: ColorScheme = {
   dangerTint: '#FCEEEE',
   dangerBorder: '#F2D2D2',
   dangerText: '#A13333',
-  heroBg: '#17181A',
-  // fixed semantic colors (same in both themes, from inline styles in the source)
   success: '#1D9E5F',
   successStrong: '#3DBB7D',
   info: '#2E6BE0',
@@ -87,10 +97,7 @@ export const lightColors: ColorScheme = {
   white: '#FFFFFF',
 };
 
-export const darkColors: ColorScheme = {
-  primary: '#4C8DFF',
-  primaryStrong: '#7DA9FF',
-  primaryTint: '#15294A',
+const baseDark: BaseTokens = {
   bg: '#0F1319',
   canvas: '#070A0E',
   surface: '#161B22',
@@ -119,7 +126,6 @@ export const darkColors: ColorScheme = {
   dangerTint: '#2E1719',
   dangerBorder: '#4A2828',
   dangerText: '#FF9B9B',
-  heroBg: '#0C346B',
   success: '#1D9E5F',
   successStrong: '#3DBB7D',
   info: '#2E6BE0',
@@ -129,3 +135,44 @@ export const darkColors: ColorScheme = {
   danger: '#D64545',
   white: '#FFFFFF',
 };
+
+// The two brand themes. Blue is the app's original palette values (kept
+// byte-for-byte); orange is built from the miniOrange brand orange (#EB5424)
+// at matching tonal weights (tint/strong/hero) so both themes feel equally
+// "finished" rather than one being the real theme and one a reskin.
+const BRAND_PALETTES: Record<BrandTheme, { light: BrandTokens; dark: BrandTokens }> = {
+  orange: {
+    light: {
+      primary: '#EB5424',
+      primaryStrong: '#CF4A1F',
+      primaryTint: '#FBE7DC',
+      heroBg: '#17181A',
+    },
+    dark: {
+      primary: '#FF8A5B',
+      primaryStrong: '#FFAA85',
+      primaryTint: '#3A2013',
+      heroBg: '#3D1F0E',
+    },
+  },
+  blue: {
+    light: {
+      primary: '#0052CC',
+      primaryStrong: '#003D99',
+      primaryTint: '#E7EEFB',
+      heroBg: '#17181A',
+    },
+    dark: {
+      primary: '#4C8DFF',
+      primaryStrong: '#7DA9FF',
+      primaryTint: '#15294A',
+      heroBg: '#0C346B',
+    },
+  },
+};
+
+export function getColorScheme(brand: BrandTheme, isDark: boolean): ColorScheme {
+  const base = isDark ? baseDark : baseLight;
+  const tokens = BRAND_PALETTES[brand][isDark ? 'dark' : 'light'];
+  return { ...base, ...tokens };
+}

@@ -137,11 +137,11 @@ export const DRIVE_LABELS: Record<string, string> = {
 export const APPS: CatalogApp[] = [
   {
     id: 'auth',
-    name: 'miniOrange Authenticator',
-    pub: 'miniOrange',
+    name: 'Authenticator',
+    pub: 'Acme Corp IT',
     size: '18 MB',
-    tile: '#0052CC',
-    init: 'mO',
+    tile: '', // brand-tinted — see AppsScreen, which falls back to colors.primary
+    init: 'A',
     section: 'req',
     description: 'One-tap sign-in and MFA for all your company accounts.',
     version: '4.2.1',
@@ -257,9 +257,9 @@ export function certDefs(orgName: string): CertDef[] {
     },
     {
       id: 'vpnkey',
-      name: 'miniOrangeVPN client key',
+      name: 'VPN client key',
       detail: 'Required for the secure tunnel',
-      issuer: 'C=US, ST=WY, O=miniOrange',
+      issuer: orgName + ' Certificate Authority',
       expires: '2048-11-23T06:38:21Z',
       serial: '19:C8:73:2D:FA:E1',
       usedFor: 'Client identity for the WireGuard® secure tunnel',

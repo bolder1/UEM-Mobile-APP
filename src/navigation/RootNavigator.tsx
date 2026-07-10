@@ -13,6 +13,7 @@ import { CastScreen } from '../screens/overlays/CastScreen';
 import { CertsScreen } from '../screens/overlays/CertsScreen';
 import { NotificationsScreen } from '../screens/overlays/NotificationsScreen';
 import { AboutScreen } from '../screens/overlays/AboutScreen';
+import { AppearanceScreen } from '../screens/overlays/AppearanceScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -30,6 +31,7 @@ export function RootNavigator() {
       <Stack.Screen name="Certs" component={CertsScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="Appearance" component={AppearanceScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Left" component={UnenrolledScreen} />
     </Stack.Navigator>
   );

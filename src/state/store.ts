@@ -13,6 +13,7 @@ import {
   ThemeMode,
   VpnStatus,
 } from '../types';
+import { BrandTheme } from '../theme/colors';
 import {
   APPS,
   CAST_TARGETS,
@@ -38,6 +39,7 @@ interface AppStoreState {
 
   // theme
   themeMode: ThemeMode;
+  brandTheme: BrandTheme;
 
   // vpn
   vpn: VpnStatus;
@@ -93,6 +95,7 @@ interface AppStoreState {
 
   // actions — theme
   setThemeMode: (m: ThemeMode) => void;
+  setBrandTheme: (b: BrandTheme) => void;
 
   // actions — vpn
   toggleVpn: () => void;
@@ -147,6 +150,7 @@ const initialState = {
   approved: false,
   perms: { notif: false, vpn: false, mgmt: false, loc: false },
   themeMode: 'light' as ThemeMode,
+  brandTheme: 'orange' as BrandTheme,
   vpn: 'off' as VpnStatus,
   vpnSecs: 0,
   vpnDown: 0,
@@ -197,6 +201,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   setPerm: (key, v) => set((s) => ({ perms: { ...s.perms, [key]: v } })),
 
   setThemeMode: (m) => set({ themeMode: m }),
+  setBrandTheme: (b) => set({ brandTheme: b }),
 
   toggleVpn: () => {
     const s = get();

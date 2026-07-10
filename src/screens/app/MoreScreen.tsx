@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sun, Moon, Monitor, BadgeCheck, Cast, Headphones, LogOut, Bell, Info } from 'lucide-react-native';
+import { Palette, BadgeCheck, Cast, Headphones, LogOut, Bell, Info } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { ListRow } from '../../components/ListRow';
-import { ThemePicker } from '../../components/ThemePicker';
 import { Button } from '../../components/Button';
 import { useAppStore, ORG_NAME, DEFAULT_USER_NAME, pendingCertCount, unreadNotifCount } from '../../state/store';
 import { CompositeScreenProps } from '@react-navigation/native';
@@ -22,8 +21,6 @@ type Props = CompositeScreenProps<
 export function MoreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const form = useAppStore((s) => s.form);
-  const themeMode = useAppStore((s) => s.themeMode);
-  const setThemeMode = useAppStore((s) => s.setThemeMode);
   const certs = useAppStore((s) => s.certs);
   const cast = useAppStore((s) => s.cast);
   const notifications = useAppStore((s) => s.notifications);
@@ -74,28 +71,13 @@ export function MoreScreen({ navigation }: Props) {
           </View>
         </Card>
 
-        <Card style={styles.appearanceCard}>
-          <View style={styles.appearanceHead}>
-            <Monitor size={18} color={colors.text3} strokeWidth={2} />
-            <AppText variant="bodySemibold" style={{ fontSize: 14, flex: 1 }}>
-              Appearance
-            </AppText>
-          </View>
-          <ThemePicker
-            value={themeMode}
-            onChange={setThemeMode}
-            options={[
-              { value: 'light', label: 'Light', icon: (c) => <Sun size={18} color={c} strokeWidth={2.2} /> },
-              { value: 'dark', label: 'Dark', icon: (c) => <Moon size={18} color={c} strokeWidth={2.2} /> },
-              { value: 'system', label: 'System', icon: (c) => <Monitor size={18} color={c} strokeWidth={2.2} /> },
-            ]}
-          />
-          <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 9 }}>
-            {themeMode === 'system' ? 'Following your device setting' : `Always ${themeMode[0].toUpperCase()}${themeMode.slice(1)}`}
-          </AppText>
-        </Card>
-
         <Card style={styles.linksCard} padded={false}>
+          <ListRow
+            icon={<Palette size={18} color={colors.text3} strokeWidth={2} />}
+            label="Appearance"
+            onPress={() => navigation.navigate('Appearance')}
+            bordered
+          />
           <ListRow
             icon={<Bell size={18} color={colors.text3} strokeWidth={2} />}
             label="Notifications"
@@ -191,7 +173,7 @@ export function MoreScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, lineHeight: 17, textAlign: 'center' }}>
-            miniOrange UEM · v3.0.0 (prototype){'\n'}WireGuard® tunnel engine · DPDPA-aligned privacy
+            UEM Companion · v3.0.0 (prototype){'\n'}WireGuard® tunnel engine · DPDPA-aligned privacy
           </AppText>
         </View>
       </ScrollView>
@@ -205,8 +187,6 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 110 },
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
   avatar: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  appearanceCard: { marginBottom: 14 },
-  appearanceHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   linksCard: { overflow: 'hidden', marginBottom: 14 },
   countBadge: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   liveTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 2 },

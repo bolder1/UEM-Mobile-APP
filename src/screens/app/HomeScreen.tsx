@@ -54,9 +54,9 @@ export function HomeScreen({ navigation }: Props) {
   const heroDot = vpnOn ? colors.successStrong : vpnConnecting ? colors.primary : colors.muted2;
   const heroLabel = vpnOn ? 'Secure Access — Connected' : vpnConnecting ? 'Connecting…' : 'Secure Access — Off';
   const heroSub = vpnOn
-    ? 'miniOrangeVPN · WireGuard® tunnel active'
+    ? 'Secure tunnel · WireGuard® active'
     : vpnConnecting
-    ? 'Handshake with in.gw.miniorange.com'
+    ? 'Handshake with the secure gateway'
     : 'Tap to open the secure tunnel';
   const heroBtnBg = vpnOn ? colors.success : vpnConnecting ? colors.primaryStrong : 'rgba(255,255,255,0.14)';
 
@@ -82,7 +82,7 @@ export function HomeScreen({ navigation }: Props) {
               Good morning, {firstName}
             </AppText>
             <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-              {ORG_NAME} · Managed by miniOrange UEM
+              {ORG_NAME} · Managed by UEM Companion
             </AppText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

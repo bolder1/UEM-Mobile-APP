@@ -187,7 +187,7 @@ function AppSection({
               style={({ pressed }) => [styles.appRowInfo, pressed && { opacity: 0.6 }]}
             >
               <View style={styles.iconWrap}>
-                <View style={[styles.tile, { backgroundColor: app.tile, borderColor: colors.borderStrong }]}>
+                <View style={[styles.tile, { backgroundColor: app.tile || colors.primary, borderColor: colors.borderStrong }]}>
                   <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 16 }}>
                     {app.init}
                   </AppText>
@@ -260,7 +260,7 @@ function AppDetail({
   return (
     <View>
       <View style={styles.sheetHeader}>
-        <View style={[styles.tile, { width: 60, height: 60, borderRadius: 16, backgroundColor: app.tile, borderColor: colors.borderStrong }]}>
+        <View style={[styles.tile, { width: 60, height: 60, borderRadius: 16, backgroundColor: app.tile || colors.primary, borderColor: colors.borderStrong }]}>
           <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 20 }}>
             {app.init}
           </AppText>

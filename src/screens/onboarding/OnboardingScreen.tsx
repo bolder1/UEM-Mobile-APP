@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Shield, Power, Eye, Check, X, Lock } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -27,11 +27,9 @@ export function OnboardingScreen({ navigation }: Props) {
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <View style={styles.brand}>
-          <View style={[styles.logo, { backgroundColor: colors.primary }]}>
-            <Shield size={15} color="#FFFFFF" strokeWidth={2.4} />
-          </View>
+          <Image source={require('../../../assets/logo-mark.png')} style={styles.logo} resizeMode="contain" />
           <AppText variant="display" style={{ fontSize: 14, letterSpacing: -0.2 }}>
-            miniOrange <AppText variant="display" color={colors.primary} style={{ fontSize: 14 }}>UEM</AppText>
+            UEM <AppText variant="display" color={colors.primary} style={{ fontSize: 14 }}>Companion</AppText>
           </AppText>
         </View>
         <Pressable onPress={() => navigation.replace('Enroll')} hitSlop={8}>
@@ -82,7 +80,7 @@ function StepZeroArt() {
   return (
     <>
       <View style={[styles.iconOuter, { backgroundColor: colors.primaryTint }]}>
-        <View style={[styles.iconInner, { backgroundColor: colors.primary }]}>
+        <View style={[styles.iconInner, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
           <Shield size={44} color="#FFFFFF" strokeWidth={2} />
         </View>
       </View>
@@ -101,7 +99,7 @@ function StepOneArt() {
   return (
     <>
       <View style={[styles.iconOuter, { backgroundColor: colors.infoTint }]}>
-        <View style={[styles.iconInner, { backgroundColor: colors.info }]}>
+        <View style={[styles.iconInner, { backgroundColor: colors.info, shadowColor: colors.info }]}>
           <Power size={44} color="#FFFFFF" strokeWidth={2} />
         </View>
       </View>
@@ -120,7 +118,7 @@ function StepTwoArt() {
   return (
     <>
       <View style={[styles.iconOuter, { backgroundColor: colors.successTint }]}>
-        <View style={[styles.iconInner, { backgroundColor: colors.success }]}>
+        <View style={[styles.iconInner, { backgroundColor: colors.success, shadowColor: colors.success }]}>
           <Eye size={44} color="#FFFFFF" strokeWidth={2} />
         </View>
       </View>
@@ -150,7 +148,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 14, paddingBottom: 4 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 28, height: 28 },
   body: { flex: 1, justifyContent: 'center' },
   illustration: {
     height: 300,
@@ -168,7 +166,6 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0052CC',
     shadowOpacity: 0.35,
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 12 },

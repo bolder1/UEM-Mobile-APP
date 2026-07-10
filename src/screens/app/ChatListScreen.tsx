@@ -122,7 +122,7 @@ export function ChatListScreen({ navigation }: Props) {
         }}
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.93 : 1 }] },
+          { backgroundColor: colors.primary, shadowColor: colors.primary, transform: [{ scale: pressed ? 0.93 : 1 }] },
         ]}
       >
         <Plus size={24} color="#FFFFFF" strokeWidth={2.4} />
@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0052CC',
     shadowOpacity: 0.4,
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 10 },

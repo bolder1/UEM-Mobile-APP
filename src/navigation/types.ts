@@ -20,6 +20,7 @@ export type RootStackParamList = {
   Certs: undefined;
   Notifications: undefined;
   About: undefined;
+  Appearance: undefined;
   Left: undefined;
 };
 

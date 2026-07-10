@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Server, Check, X } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -119,8 +119,15 @@ export function AboutScreen({ navigation }: Props) {
 
         <AppText variant="body" color={colors.muted2} style={styles.footer}>
           Varies by ownership: personal (BYOD) devices share far less than company-owned.{'\n'}
-          miniOrange UEM · v3.0.0 (prototype) · DPDPA-aligned privacy
+          UEM Companion · v3.0.0 (prototype) · DPDPA-aligned privacy
         </AppText>
+
+        <View style={styles.poweredBy}>
+          <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 10, letterSpacing: 1 }}>
+            POWERED BY
+          </AppText>
+          <Image source={require('../../../assets/logo-wordmark.png')} style={styles.wordmark} resizeMode="contain" />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -185,4 +192,6 @@ const styles = StyleSheet.create({
   grantRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 16 },
   tag: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   footer: { fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 22 },
+  poweredBy: { alignItems: 'center', gap: 6, marginTop: 20, opacity: 0.85 },
+  wordmark: { width: 118, height: 22 },
 });
