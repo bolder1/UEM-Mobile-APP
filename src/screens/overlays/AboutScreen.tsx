@@ -1,30 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Server, Check, X } from 'lucide-react-native';
+import { Server, EyeOff, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
-import { useAppStore } from '../../state/store';
+import { useAppStore, ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'About'>;
-
-const CAN_SEE = [
-  'Device model, OS version and name',
-  'Work apps installed from this catalog',
-  'Compliance status and policy checks',
-  'Traffic on the work tunnel only',
-];
-const CANNOT_SEE = [
-  'Personal apps, photos and messages',
-  'Personal browsing or call history',
-  'Passwords or personal accounts',
-  'Location while the toggle is off',
-];
 
 export function AboutScreen({ navigation }: Props) {
   const { colors } = useTheme();
@@ -69,33 +56,22 @@ export function AboutScreen({ navigation }: Props) {
         <AppText variant="displaySemibold" style={styles.sectionLabel}>
           Privacy
         </AppText>
-        <Card style={styles.section}>
-          <View style={styles.sectionHead}>
-            <View style={[styles.dot, { backgroundColor: colors.success }]} />
-            <AppText variant="displaySemibold" style={{ fontSize: 13.5 }}>
-              Your company can see
-            </AppText>
-          </View>
-          <View style={{ gap: 9 }}>
-            {CAN_SEE.map((line) => (
-              <Line key={line} icon={<Check size={14} color={colors.success} strokeWidth={2.6} />} text={line} />
-            ))}
-          </View>
-        </Card>
-
-        <Card style={styles.section}>
-          <View style={styles.sectionHead}>
-            <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-            <AppText variant="displaySemibold" style={{ fontSize: 13.5 }}>
-              Your company can never see
-            </AppText>
-          </View>
-          <View style={{ gap: 9 }}>
-            {CANNOT_SEE.map((line) => (
-              <Line key={line} icon={<X size={14} color={colors.danger} strokeWidth={2.6} />} text={line} />
-            ))}
-          </View>
-        </Card>
+        <Pressable onPress={() => navigation.navigate('Privacy')}>
+          <Card style={[styles.section, styles.privacyLink]}>
+            <View style={[styles.privacyIcon, { backgroundColor: colors.successTint }]}>
+              <EyeOff size={20} color={colors.success} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                What {ORG_NAME} can &amp; can&rsquo;t see
+              </AppText>
+              <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                6 things visible · 9 stay private on your device
+              </AppText>
+            </View>
+            <ChevronRight size={17} color={colors.faint} strokeWidth={2.2} />
+          </Card>
+        </Pressable>
 
         <AppText variant="displaySemibold" style={styles.sectionLabel}>
           App permissions
@@ -147,18 +123,6 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Line({ icon, text }: { icon: React.ReactNode; text: string }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.line}>
-      {icon}
-      <AppText variant="body" color={colors.text2} style={{ fontSize: 12.5, lineHeight: 18, flex: 1 }}>
-        {text}
-      </AppText>
-    </View>
-  );
-}
-
 function GrantRow({ label, tag, bordered }: { label: string; tag: string; bordered?: boolean }) {
   const { colors } = useTheme();
   return (
@@ -186,6 +150,8 @@ const styles = StyleSheet.create({
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   sectionLabel: { fontSize: 13.5, marginBottom: 10, marginHorizontal: 2 },
   section: { marginBottom: 12 },
+  privacyLink: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+  privacyIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   line: { flexDirection: 'row', gap: 9 },

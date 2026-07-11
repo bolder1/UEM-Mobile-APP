@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight } from 'lucide-react-native';
+import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight, Cast } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -31,6 +31,8 @@ export function HomeScreen({ navigation }: Props) {
   const appSt = useAppStore((s) => s.appSt);
   const broadcastAcked = useAppStore((s) => s.broadcastAcked);
   const ackBroadcast = useAppStore((s) => s.ackBroadcast);
+  const cast = useAppStore((s) => s.cast);
+  const incomingCast = useAppStore((s) => s.incomingCastSession);
   const lastSync = useAppStore((s) => s.lastSync);
   const syncing = useAppStore((s) => s.syncing);
   const syncNow = useAppStore((s) => s.syncNow);
@@ -44,6 +46,8 @@ export function HomeScreen({ navigation }: Props) {
   const certsPending = pendingCertCount(certs);
   const appsToAct = Object.values(appSt).filter((s) => s === 'available' || s === 'update').length;
   const vpnOn = vpn === 'on';
+  const castLive = cast === 'live';
+  const castNudge = incomingCast || castLive;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -131,10 +135,36 @@ export function HomeScreen({ navigation }: Props) {
           </Pressable>
 
           {/* ---- needs your action ---- */}
-          {(certsPending > 0 || !broadcastAcked) ? (
+          {(certsPending > 0 || castNudge || !broadcastAcked) ? (
             <AppText variant="displaySemibold" style={styles.sectionLabel}>Needs your action</AppText>
           ) : null}
           <View style={{ gap: 10 }}>
+            {castNudge ? (
+              <Pressable onPress={() => { haptics.tap(); navigation.navigate('Cast'); }}>
+                <Card style={styles.rowCard}>
+                  <View style={[styles.rowIcon, { backgroundColor: castLive ? colors.successTint : colors.primaryTint }]}>
+                    <Cast size={20} color={castLive ? colors.success : colors.primary} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="bodySemibold" style={{ fontSize: 14 }}>Screen cast</AppText>
+                    <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                      {castLive ? 'Session live with IT · Ravi Kumar' : 'IT · Ravi Kumar wants to start a session'}
+                    </AppText>
+                  </View>
+                  {castLive ? (
+                    <View style={styles.liveTag}>
+                      <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                      <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11 }}>Live</AppText>
+                    </View>
+                  ) : (
+                    <View style={[styles.pill, { backgroundColor: colors.primary }]}>
+                      <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 12 }}>Review</AppText>
+                    </View>
+                  )}
+                </Card>
+              </Pressable>
+            ) : null}
+
             {certsPending > 0 ? (
               <Pressable onPress={() => { haptics.tap(); navigation.navigate('Certs'); }}>
                 <Card style={styles.rowCard}>
@@ -229,4 +259,6 @@ const styles = StyleSheet.create({
   pill: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   pillOutline: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1 },
   miniDot: { width: 7, height: 7, borderRadius: 3.5 },
+  liveTag: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
 });
