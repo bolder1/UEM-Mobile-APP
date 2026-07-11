@@ -118,3 +118,23 @@ export interface NotificationItem {
   time: string;
   read: boolean;
 }
+
+// Audit trail — every state-changing action a person or IT takes on this device.
+export type ActivityKind = 'app' | 'cert' | 'tunnel' | 'sync' | 'cast' | 'security' | 'enroll';
+
+export interface ActivityEntry {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  time: string;
+  actor: string; // 'you' | 'IT · Ravi Kumar'
+}
+
+export type ToastTone = 'success' | 'info' | 'danger';
+
+export interface ToastMsg {
+  id: number;
+  message: string;
+  tone: ToastTone;
+}

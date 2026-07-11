@@ -7,6 +7,7 @@ import {
   CastSession,
   AppInstallStatus,
   NotificationItem,
+  ActivityEntry,
 } from '../types';
 
 export const INITIAL_CHATS: ChatContact[] = [
@@ -327,6 +328,15 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     time: '2 days ago',
     read: true,
   },
+];
+
+// Seed audit trail — what already happened during/after enrollment, so the
+// Activity log is populated on first open and shows both "you" and IT actors.
+export const INITIAL_ACTIVITY: ActivityEntry[] = [
+  { id: 'seed-signin', kind: 'security', title: 'New device sign-in', detail: 'From Pune, IN · you reviewed it', time: '2 days ago', actor: 'you' },
+  { id: 'seed-root', kind: 'cert', title: 'Installed Corporate Root CA', detail: 'Acme Corp Certificate Authority', time: 'Jun 18', actor: 'IT · Ravi Kumar' },
+  { id: 'seed-auth', kind: 'app', title: 'Installed Authenticator', detail: 'Acme Corp IT · required app', time: 'Jun 18', actor: 'IT · Ravi Kumar' },
+  { id: 'seed-enroll', kind: 'enroll', title: 'Device enrolled', detail: 'Personal (BYOD) · work profile created', time: 'Jun 18', actor: 'you' },
 ];
 
 export const ONBOARDING_STEPS = [

@@ -19,6 +19,7 @@ import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { BottomSheet } from '../../components/BottomSheet';
+import { useNavigation } from '@react-navigation/native';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
 import { FILE_NODES, FILE_TYPE_STYLE, TYPE_LABELS, DRIVE_LABELS } from '../../data/mockData';
@@ -100,6 +101,7 @@ function breadcrumbTrail(drive: DriveId, folderId: string | null): FileNode[] {
 
 export function FilesScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const drive = useAppStore((s) => s.drive);
   const currentFolderId = useAppStore((s) => s.currentFolderId);
   const setDrive = useAppStore((s) => s.setDrive);
@@ -148,9 +150,14 @@ export function FilesScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
       <View style={styles.header}>
-        <AppText variant="display" style={{ fontSize: 22 }}>
-          Files
-        </AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
+            <ChevronLeft size={22} color={colors.text2} strokeWidth={2.2} />
+          </Pressable>
+          <AppText variant="display" style={{ fontSize: 22 }}>
+            Files
+          </AppText>
+        </View>
         <Pressable
           onPress={() => {
             haptics.tap();
@@ -481,6 +488,7 @@ function SheetRow({ label, value, borderColor, last }: { label: string; value: s
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
   filterBtn: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   filterDot: { position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   scroll: { paddingHorizontal: 20, paddingBottom: 110 },

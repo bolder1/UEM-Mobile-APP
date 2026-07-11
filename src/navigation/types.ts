@@ -2,10 +2,9 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type MainTabParamList = {
   Home: undefined;
-  Chat: undefined;
-  Files: undefined;
   Apps: undefined;
-  More: undefined;
+  Chat: undefined;
+  Profile: undefined;
 };
 
 export type RootStackParamList = {
@@ -15,10 +14,13 @@ export type RootStackParamList = {
   Permissions: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   ChatThread: { chatId: string };
+  Files: undefined;
   Vpn: undefined;
   Cast: undefined;
   Certs: undefined;
   Notifications: undefined;
+  Privacy: undefined;
+  Activity: undefined;
   About: undefined;
   Appearance: undefined;
   Left: undefined;

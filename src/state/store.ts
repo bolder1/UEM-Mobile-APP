@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import {
+  ActivityEntry,
+  ActivityKind,
   AppInstallStatus,
   CastSession,
   CastStatus,
@@ -11,13 +13,17 @@ import {
   NotificationItem,
   Permissions,
   ThemeMode,
+  ToastMsg,
+  ToastTone,
   VpnStatus,
 } from '../types';
 import { BrandTheme } from '../theme/colors';
 import {
   APPS,
   CAST_TARGETS,
+  certDefs,
   DIRECTORY,
+  INITIAL_ACTIVITY,
   INITIAL_APP_STATUS,
   INITIAL_CAST_HISTORY,
   INITIAL_CERTS,
@@ -84,6 +90,10 @@ interface AppStoreState {
   // notifications
   notifications: NotificationItem[];
 
+  // audit trail + transient feedback
+  activity: ActivityEntry[];
+  toast: ToastMsg | null;
+
   // unenroll
   unVal: string;
 
@@ -131,6 +141,11 @@ interface AppStoreState {
   markNotifRead: (id: string) => void;
   markAllNotifsRead: () => void;
 
+  // actions — audit + feedback
+  logActivity: (kind: ActivityKind, title: string, detail: string, actor?: string) => void;
+  showToast: (message: string, tone?: ToastTone) => void;
+  hideToast: () => void;
+
   // actions — unenroll / reset
   setUnVal: (v: string) => void;
   resetAll: () => void;
@@ -177,8 +192,12 @@ const initialState = {
   castHistory: [...INITIAL_CAST_HISTORY],
   incomingCastSession: true,
   notifications: [...INITIAL_NOTIFICATIONS],
+  activity: [...INITIAL_ACTIVITY],
+  toast: null as ToastMsg | null,
   unVal: '',
 };
+
+let toastSeq = 1;
 
 export const useAppStore = create<AppStoreState>((set, get) => ({
   ...initialState,
@@ -209,6 +228,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       set({ vpn: 'connecting' });
       later(() => {
         set({ vpn: 'on', vpnSecs: 0, vpnDown: 186, vpnUp: 42, vpnPing: 18 });
+        get().logActivity('tunnel', 'Secure tunnel connected', 'WireGuard® · office gateway', 'you');
+        get().showToast('Secure tunnel connected');
         vpnInterval = setInterval(() => {
           set((st) => {
             const dn = Math.max(64, Math.min(324, st.vpnDown + Math.round(Math.random() * 96 - 48)));
@@ -221,35 +242,47 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     } else if (s.vpn === 'on') {
       if (vpnInterval) clearInterval(vpnInterval);
       set({ vpn: 'off', vpnSecs: 0 });
+      get().showToast('Secure tunnel disconnected', 'info');
     }
   },
 
   appAction: (id) => {
     const st = get().appSt[id];
+    const name = APPS.find((a) => a.id === id)?.name || 'App';
+    const wasUpdate = st === 'update';
     if (st === 'restricted') {
       set((s) => ({ appSt: { ...s.appSt, [id]: 'requested' } }));
+      get().logActivity('app', `Requested ${name}`, 'Sent to IT for approval', 'you');
+      get().showToast(`Requested ${name} — IT will review`, 'info');
       return;
     }
     if (st === 'available' || st === 'update') {
       set((s) => ({ appSt: { ...s.appSt, [id]: 'installing' }, progress: { ...s.progress, [id]: 0 } }));
       const int = setInterval(() => {
-        set((s) => {
-          const p = (s.progress[id] || 0) + 4 + Math.random() * 7;
-          if (p >= 100) {
-            clearInterval(int);
-            delete appInstallIntervals[id];
-            return { appSt: { ...s.appSt, [id]: 'installed' }, progress: { ...s.progress, [id]: 100 } };
-          }
-          return { progress: { ...s.progress, [id]: p } };
-        });
+        const cur = get();
+        const p = (cur.progress[id] || 0) + 4 + Math.random() * 7;
+        if (p >= 100) {
+          clearInterval(int);
+          delete appInstallIntervals[id];
+          set({ appSt: { ...cur.appSt, [id]: 'installed' }, progress: { ...cur.progress, [id]: 100 } });
+          get().logActivity('app', `${wasUpdate ? 'Updated' : 'Installed'} ${name}`, 'Pushed by IT · work profile', 'you');
+          get().showToast(`${wasUpdate ? 'Updated' : 'Installed'} ${name}`);
+        } else {
+          set({ progress: { ...cur.progress, [id]: p } });
+        }
       }, 140);
       appInstallIntervals[id] = int;
     }
   },
 
   installCert: (id) => {
+    const name = certDefs(ORG_NAME).find((c) => c.id === id)?.name || 'Certificate';
     set((s) => ({ certs: { ...s.certs, [id]: 'installing' } }));
-    later(() => set((s) => ({ certs: { ...s.certs, [id]: 'installed' } })), 1500);
+    later(() => {
+      set((s) => ({ certs: { ...s.certs, [id]: 'installed' } }));
+      get().logActivity('cert', `Installed ${name}`, 'Issued by Acme Corp Certificate Authority', 'you');
+      get().showToast('Certificate installed');
+    }, 1500);
   },
 
   ackBroadcast: () => set({ broadcastAcked: true }),
@@ -257,7 +290,11 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   syncNow: () => {
     if (get().syncing) return;
     set({ syncing: true });
-    later(() => set({ syncing: false, lastSync: 'just now' }), 1600);
+    later(() => {
+      set({ syncing: false, lastSync: 'just now' });
+      get().logActivity('sync', 'Synced with IT', 'Policy, inventory and compliance refreshed', 'you');
+      get().showToast('Device synced');
+    }, 1600);
   },
 
   openChat: (id) => {
@@ -337,6 +374,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         quality: 'HD',
       };
       set((st) => ({ castHistory: [entry, ...st.castHistory] }));
+      get().logActivity(
+        'cast',
+        'Screen share ended',
+        `${entry.targetName} · ${entry.duration}`,
+        s.castTarget.isAssist ? 'IT · Ravi Kumar' : 'you',
+      );
     }
     set({ cast: 'idle', castTarget: null, castSecs: 0 });
   },
@@ -346,6 +389,17 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   markNotifRead: (id) =>
     set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
   markAllNotifsRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
+
+  logActivity: (kind, title, detail, actor = 'you') =>
+    set((s) => ({
+      activity: [
+        { id: 'a' + Date.now() + '-' + s.activity.length, kind, title, detail, time: 'Just now', actor },
+        ...s.activity,
+      ].slice(0, 60),
+    })),
+
+  showToast: (message, tone = 'success') => set({ toast: { id: toastSeq++, message, tone } }),
+  hideToast: () => set({ toast: null }),
 
   setUnVal: (v) => set({ unVal: v }),
 
@@ -363,6 +417,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       unread: { ...INITIAL_UNREAD },
       castHistory: [...INITIAL_CAST_HISTORY],
       notifications: [...INITIAL_NOTIFICATIONS],
+      activity: [...INITIAL_ACTIVITY],
+      toast: null,
     });
   },
 }));

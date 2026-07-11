@@ -3,7 +3,7 @@ import { View, Pressable, Animated, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { House, MessageCircle, Folder, LayoutGrid, Ellipsis } from 'lucide-react-native';
+import { House, MessageCircle, LayoutGrid, CircleUser } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from '../components/Text';
 import { useAppStore, hasAnyUnread } from '../state/store';
@@ -12,10 +12,9 @@ import { isAndroid, ripple } from '../theme/platform';
 
 const ICONS: Record<string, any> = {
   Home: House,
-  Chat: MessageCircle,
-  Files: Folder,
   Apps: LayoutGrid,
-  More: Ellipsis,
+  Chat: MessageCircle,
+  Profile: CircleUser,
 };
 
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {

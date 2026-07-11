@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Lock, Smartphone, MapPin, Check } from 'lucide-react-native';
+import { Bell, Lock, Smartphone, MapPin, Star } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { IconTile } from '../../components/IconTile';
+import { ToggleSwitch } from '../../components/ToggleSwitch';
 import { useAppStore } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Permissions } from '../../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
@@ -20,6 +20,7 @@ export function PermissionsScreen({ navigation }: Props) {
   const setPerm = useAppStore((s) => s.setPerm);
 
   const requiredOk = perms.notif && perms.vpn && perms.mgmt;
+  const grantedCount = [perms.notif, perms.vpn, perms.mgmt].filter(Boolean).length;
 
   const enter = () => {
     if (requiredOk) navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
@@ -32,57 +33,60 @@ export function PermissionsScreen({ navigation }: Props) {
           A few permissions
         </AppText>
         <AppText variant="body" color={colors.text3} style={styles.subtitle}>
-          Each one says exactly why it&rsquo;s needed. You can review these anytime.
+          Each says exactly why it&rsquo;s needed. Turn on the three required ones to continue — change any of
+          them later in Profile.
         </AppText>
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
-        <PermRow
-          icon={<Bell size={20} color={colors.primary} strokeWidth={2} />}
-          tint={colors.primaryTint}
-          title="Notifications"
-          badge="Required"
-          desc="IT broadcasts and required actions reach you here."
-          granted={perms.notif}
-          onAllow={() => setPerm('notif', true)}
-        />
-        <PermRow
-          icon={<Lock size={20} color={colors.info} strokeWidth={2} />}
-          tint={colors.infoTint}
-          title="VPN configuration"
-          badge="Required"
-          desc="Lets this app create the secure tunnel to work."
-          granted={perms.vpn}
-          onAllow={() => setPerm('vpn', true)}
-        />
-        <PermRow
-          icon={<Smartphone size={20} color={colors.violet} strokeWidth={2} />}
-          tint={colors.violetTint}
-          title="Device management"
-          badge="Required"
-          desc="Creates the work profile for apps and policies."
-          granted={perms.mgmt}
-          onAllow={() => setPerm('mgmt', true)}
-        />
-        <PermRow
-          icon={<MapPin size={20} color={colors.success} strokeWidth={2} />}
-          tint={colors.successTint}
-          title="Location"
-          badge="Optional"
-          badgeColor={colors.info}
-          badgeBg={colors.infoTint}
-          desc="Used only for office geofence check-in. Off by default."
-          granted={perms.loc}
-          onAllow={() => setPerm('loc', true)}
-          optional
-        />
+        <Card style={{ overflow: 'hidden' }} padded={false}>
+          <PermRow
+            icon={<Bell size={19} color={colors.text3} strokeWidth={2} />}
+            title="Notifications"
+            required
+            desc="IT broadcasts and required actions reach you."
+            granted={perms.notif}
+            onChange={(v) => setPerm('notif', v)}
+            bordered
+          />
+          <PermRow
+            icon={<Lock size={19} color={colors.text3} strokeWidth={2} />}
+            title="Secure tunnel"
+            required
+            desc="Lets the app create the WireGuard® tunnel to work."
+            granted={perms.vpn}
+            onChange={(v) => setPerm('vpn', v)}
+            bordered
+          />
+          <PermRow
+            icon={<Smartphone size={19} color={colors.text3} strokeWidth={2} />}
+            title="Device management"
+            required
+            desc="Creates the work profile for apps and policy."
+            granted={perms.mgmt}
+            onChange={(v) => setPerm('mgmt', v)}
+            bordered
+          />
+          <PermRow
+            icon={<MapPin size={19} color={colors.text3} strokeWidth={2} />}
+            title="Location"
+            desc="Office geofence check-in only. Off by default."
+            granted={perms.loc}
+            onChange={(v) => setPerm('loc', v)}
+          />
+        </Card>
+
         <AppText variant="body" color={colors.muted2} style={styles.footNote}>
-          Review what your company can and can&rsquo;t see anytime from More → About.
+          See exactly what your company can and can&rsquo;t see anytime from Profile → Privacy.
         </AppText>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button label="Continue to your workspace" onPress={enter} disabled={!requiredOk} />
+        <Button
+          label={requiredOk ? 'Continue to your workspace' : `Turn on ${3 - grantedCount} more to continue`}
+          onPress={enter}
+          disabled={!requiredOk}
+        />
       </View>
     </SafeAreaView>
   );
@@ -90,70 +94,49 @@ export function PermissionsScreen({ navigation }: Props) {
 
 function PermRow({
   icon,
-  tint,
   title,
-  badge,
-  badgeColor,
-  badgeBg,
+  required,
   desc,
   granted,
-  onAllow,
-  optional,
+  onChange,
+  bordered,
 }: {
   icon: React.ReactNode;
-  tint: string;
   title: string;
-  badge: string;
-  badgeColor?: string;
-  badgeBg?: string;
+  required?: boolean;
   desc: string;
   granted: boolean;
-  onAllow: () => void;
-  optional?: boolean;
+  onChange: (v: boolean) => void;
+  bordered?: boolean;
 }) {
   const { colors } = useTheme();
   return (
-    <Card style={styles.permCard}>
-      <View style={styles.permRow}>
-        <IconTile bg={tint}>{icon}</IconTile>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <AppText variant="bodySemibold" style={{ fontSize: 14 }}>
-              {title}
-            </AppText>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: badgeBg ?? colors.surfaceSunken, marginLeft: 4 },
-              ]}
-            >
-              <AppText variant="bodySemibold" color={badgeColor ?? colors.muted} style={{ fontSize: 10.5 }}>
-                {badge}
+    <View style={[styles.permRow, bordered && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}>
+      <View style={[styles.tile, { backgroundColor: colors.surfaceSunken }]}>{icon}</View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={styles.titleRow}>
+          <AppText variant="bodySemibold" style={{ fontSize: 14 }}>
+            {title}
+          </AppText>
+          {required ? (
+            <View style={[styles.reqPill, { backgroundColor: colors.primaryTint }]}>
+              <Star size={9} color={colors.primaryStrong} strokeWidth={2.6} fill={colors.primaryStrong} />
+              <AppText variant="bodyBold" color={colors.primaryStrong} style={{ fontSize: 9.5, letterSpacing: 0.2 }}>
+                Required
               </AppText>
             </View>
-          </View>
-          <AppText variant="body" color={colors.muted} style={{ fontSize: 12, lineHeight: 17, marginTop: 2 }}>
-            {desc}
-          </AppText>
-        </View>
-        {granted ? (
-          <View style={styles.allowed}>
-            <Check size={15} color={colors.success} strokeWidth={2.6} />
-            <AppText variant="bodySemibold" color={colors.success} style={{ fontSize: 12.5 }}>
-              Allowed
+          ) : (
+            <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 10.5 }}>
+              Optional
             </AppText>
-          </View>
-        ) : (
-          <Button
-            label="Allow"
-            size="sm"
-            variant={optional ? 'secondary' : 'primary'}
-            onPress={onAllow}
-            style={{ paddingHorizontal: 16 }}
-          />
-        )}
+          )}
+        </View>
+        <AppText variant="body" color={colors.muted} style={{ fontSize: 12, lineHeight: 17, marginTop: 2 }}>
+          {desc}
+        </AppText>
       </View>
-    </Card>
+      <ToggleSwitch value={granted} onChange={onChange} onColor={required ? colors.primary : colors.success} />
+    </View>
   );
 }
 
@@ -161,12 +144,12 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
   title: { fontSize: 23, marginBottom: 6 },
-  subtitle: { fontSize: 13.5, lineHeight: 19 },
-  list: { paddingHorizontal: 24, paddingTop: 14, paddingBottom: 8, gap: 12 },
-  permCard: { padding: 16 },
-  permRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  badge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  allowed: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  footNote: { fontSize: 11.5, lineHeight: 17, marginTop: 2, marginHorizontal: 4 },
+  subtitle: { fontSize: 13, lineHeight: 19 },
+  list: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
+  permRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 14 },
+  tile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flex: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  reqPill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2.5 },
+  footNote: { fontSize: 11.5, lineHeight: 17, marginTop: 14, marginHorizontal: 6 },
   footer: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 20 },
 });

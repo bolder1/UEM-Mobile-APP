@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, TextInput, Pressable, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Button } from '../../components/Button';
+import { Dropdown } from '../../components/Dropdown';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,17 +27,18 @@ export function EnrollmentFormScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <View style={styles.headerBlock}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={8}>
-          <ChevronLeft size={15} color={colors.muted} strokeWidth={2.4} />
-          <AppText variant="bodySemibold" color={colors.muted} style={{ fontSize: 13 }}>
-            Back
+        <View style={styles.topRow}>
+          <AppText variant="display" style={styles.title}>
+            Join your organization
           </AppText>
-        </Pressable>
-        <AppText variant="display" style={styles.title}>
-          Join your organization
-        </AppText>
+          <Pressable onPress={() => navigation.navigate('Onboarding')} hitSlop={8} style={[styles.introBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <AppText variant="bodySemibold" color={colors.text3} style={{ fontSize: 11.5 }}>
+              View intro
+            </AppText>
+          </Pressable>
+        </View>
         <AppText variant="body" color={colors.text3} style={styles.subtitle}>
-          Your admin reviews this request before the device is enrolled.
+          Your admin reviews this request before the device is enrolled. Nothing is installed yet.
         </AppText>
       </View>
 
@@ -82,18 +82,12 @@ export function EnrollmentFormScreen({ navigation }: Props) {
           </View>
           <View style={{ flex: 1 }}>
             <Field label="Department">
-              <View style={[styles.pickerWrap, { borderColor: colors.borderStrong, backgroundColor: colors.surface }]}>
-                <Picker
-                  selectedValue={form.dept}
-                  onValueChange={(v) => updateForm({ dept: v })}
-                  style={{ color: colors.text }}
-                  dropdownIconColor={colors.text3}
-                >
-                  {DEPARTMENTS.map((d) => (
-                    <Picker.Item key={d} label={d} value={d} />
-                  ))}
-                </Picker>
-              </View>
+              <Dropdown
+                value={form.dept}
+                options={DEPARTMENTS}
+                onChange={(v) => updateForm({ dept: v })}
+                title="Select department"
+              />
             </Field>
           </View>
         </View>
@@ -180,13 +174,13 @@ function OwnershipCard({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  headerBlock: { paddingHorizontal: 24, paddingTop: 14, paddingBottom: 6 },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  title: { fontSize: 23, marginTop: 16, marginBottom: 6 },
+  headerBlock: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 6 },
+  topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  introBtn: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 6, marginTop: 4 },
+  title: { fontSize: 23, marginBottom: 6, flex: 1 },
   subtitle: { fontSize: 13.5, lineHeight: 19 },
   form: { flex: 1, paddingHorizontal: 24, paddingTop: 14 },
   input: { height: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 14.5, fontFamily: 'Inter_400Regular' },
-  pickerWrap: { height: 48, borderWidth: 1, borderRadius: 12, justifyContent: 'center', overflow: 'hidden' },
   ownCard: { flex: 1, borderWidth: 1.5, borderRadius: 14, padding: 12 },
   errBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
   errDot: { width: 7, height: 7, borderRadius: 3.5 },
