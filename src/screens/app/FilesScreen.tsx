@@ -19,12 +19,12 @@ import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { BottomSheet } from '../../components/BottomSheet';
+import { SearchField } from '../../components/SearchField';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
-import { FILE_NODES, FILE_TYPE_STYLE, TYPE_LABELS, DRIVE_LABELS } from '../../data/mockData';
+import { FILE_NODES, TYPE_LABELS, DRIVE_LABELS } from '../../data/mockData';
 import { FileNode, DriveId, FileType } from '../../types';
-import { ColorScheme } from '../../theme/colors';
 import { ripple } from '../../theme/platform';
 
 const DRIVES: { id: DriveId; label: string }[] = [
@@ -71,22 +71,6 @@ function fileIcon(type: string, color: string) {
   }
 }
 
-function tint(colors: ColorScheme, key: string) {
-  const map: Record<string, string> = {
-    dangerTint: colors.dangerTint,
-    infoTint: colors.infoTint,
-    successTint: colors.successTint,
-    violetTint: colors.violetTint,
-    amberTint: colors.amberTint,
-    danger: colors.danger,
-    info: colors.info,
-    success: colors.success,
-    violet: colors.violet,
-    amber: colors.amber,
-  };
-  return map[key];
-}
-
 function breadcrumbTrail(drive: DriveId, folderId: string | null): FileNode[] {
   const trail: FileNode[] = [];
   let cursor = folderId;
@@ -110,6 +94,7 @@ export function FilesScreen() {
   const [selected, setSelected] = useState<FileNode | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [q, setQ] = useState('');
   const [activeTypes, setActiveTypes] = useState<Set<FileType>>(new Set());
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
 
@@ -119,9 +104,11 @@ export function FilesScreen() {
     () => FILE_NODES.filter((n) => n.drive === drive && n.parentId === currentFolderId),
     [drive, currentFolderId],
   );
-  const folders = children.filter((n) => n.kind === 'folder');
+  const query = q.trim().toLowerCase();
+  const folders = children.filter((n) => n.kind === 'folder' && (!query || n.name.toLowerCase().includes(query)));
   const files = useMemo(() => {
     let list = children.filter((n) => n.kind === 'file');
+    if (query) list = list.filter((f) => f.name.toLowerCase().includes(query));
     if (activeTypes.size > 0) list = list.filter((f) => f.type && activeTypes.has(f.type));
     list = [...list].sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -129,7 +116,7 @@ export function FilesScreen() {
       return 0; // 'date' — mock data is already newest-first per folder
     });
     return list;
-  }, [children, activeTypes, sortBy]);
+  }, [children, activeTypes, sortBy, query]);
 
   const filterCount = activeTypes.size + (sortBy !== 'date' ? 1 : 0);
 
@@ -169,6 +156,10 @@ export function FilesScreen() {
           <SlidersHorizontal size={17} color={colors.text2} strokeWidth={2.1} />
           {filterCount > 0 && <View style={[styles.filterDot, { backgroundColor: colors.primary, borderColor: colors.bg }]} />}
         </Pressable>
+      </View>
+
+      <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+        <SearchField value={q} onChangeText={setQ} placeholder="Search work files" />
       </View>
 
       <ScrollView
@@ -211,8 +202,8 @@ export function FilesScreen() {
                   pressed && { backgroundColor: colors.surfaceActive },
                 ]}
               >
-                <View style={[styles.folderIcon, { backgroundColor: colors.infoTint }]}>
-                  <Folder size={20} color={colors.info} strokeWidth={2} fill={colors.infoTint} />
+                <View style={[styles.folderIcon, { backgroundColor: colors.surfaceSunken }]}>
+                  <Folder size={20} color={colors.text3} strokeWidth={2} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13 }}>
@@ -230,7 +221,6 @@ export function FilesScreen() {
 
         <Card style={styles.listCard} padded={false}>
           {files.map((item, index) => {
-            const style = FILE_TYPE_STYLE[item.type!];
             return (
               <Pressable
                 key={item.id}
@@ -245,8 +235,8 @@ export function FilesScreen() {
                   pressed && { backgroundColor: colors.surfaceActive },
                 ]}
               >
-                <View style={[styles.fileIcon, { backgroundColor: tint(colors, style.bg) }]}>
-                  {fileIcon(item.type!, tint(colors, style.c))}
+                <View style={[styles.fileIcon, { backgroundColor: colors.surfaceSunken }]}>
+                  {fileIcon(item.type!, colors.text3)}
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
@@ -262,7 +252,7 @@ export function FilesScreen() {
           {files.length === 0 && folders.length === 0 && (
             <View style={styles.emptyBox}>
               <AppText variant="body" color={colors.muted2} style={{ fontSize: 12.5 }}>
-                This folder is empty.
+                {query ? `No files match “${q}”.` : 'This folder is empty.'}
               </AppText>
             </View>
           )}
@@ -273,8 +263,8 @@ export function FilesScreen() {
         {selected && (
           <>
             <View style={styles.sheetHeader}>
-              <View style={[styles.fileIcon, { backgroundColor: tint(colors, FILE_TYPE_STYLE[selected.type!].bg), width: 44, height: 44, borderRadius: 12 }]}>
-                {fileIcon(selected.type!, tint(colors, FILE_TYPE_STYLE[selected.type!].c))}
+              <View style={[styles.fileIcon, { backgroundColor: colors.surfaceSunken, width: 44, height: 44, borderRadius: 12 }]}>
+                {fileIcon(selected.type!, colors.text3)}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14.5 }}>

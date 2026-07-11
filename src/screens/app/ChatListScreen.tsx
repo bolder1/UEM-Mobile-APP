@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, Lock, X } from 'lucide-react-native';
+import { Plus, Lock, X, Megaphone, Search } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
+import { SearchField } from '../../components/SearchField';
+import { EmptyState } from '../../components/EmptyState';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
 import { DIRECTORY } from '../../data/mockData';
@@ -28,8 +30,9 @@ export function ChatListScreen({ navigation }: Props) {
   const openChat = useAppStore((s) => s.openChat);
   const startChatWithContact = useAppStore((s) => s.startChatWithContact);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [q, setQ] = useState('');
 
-  const rows = chats.map((c) => {
+  const rows = chats.map((c, i) => {
     const msgs = messages[c.id] || [];
     const last = msgs[msgs.length - 1];
     return {
@@ -37,8 +40,12 @@ export function ChatListScreen({ navigation }: Props) {
       lastText: last ? (last.mine ? 'You: ' + last.text : last.text) : '',
       time: last ? last.t : '',
       unread: unread[c.id] || 0,
+      online: i < 2,
     };
   });
+
+  const query = q.trim().toLowerCase();
+  const filtered = query ? rows.filter((r) => (r.name + ' ' + r.lastText).toLowerCase().includes(query)) : rows;
 
   const openThread = (id: string) => {
     openChat(id);
@@ -59,28 +66,55 @@ export function ChatListScreen({ navigation }: Props) {
         </AppText>
       </View>
 
-      <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Search size={16} color={colors.muted2} strokeWidth={2.2} />
-        <AppText variant="body" color={colors.muted2} style={{ fontSize: 13.5 }}>
-          Search people and spaces
-        </AppText>
+      <View style={{ marginBottom: 14 }}>
+        <SearchField value={q} onChangeText={setQ} placeholder="Search people and spaces" />
       </View>
 
-      <Card style={styles.listCard} padded={false}>
-        <FlatList
-          data={rows}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          renderItem={({ item, index }) => (
-            <Pressable
-              onPress={() => openThread(item.id)}
-              style={({ pressed }) => [
-                styles.row,
-                index < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
-                pressed && { backgroundColor: colors.surfaceActive },
-              ]}
-            >
-              <Avatar initials={item.init} color={item.color} size={44} />
+      {!query ? (
+        <Pressable onPress={() => navigation.navigate('Notifications')}>
+          <Card style={styles.pinned}>
+            <View style={[styles.pinIcon, { backgroundColor: colors.primaryTint }]}>
+              <Megaphone size={18} color={colors.primary} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                Company announcements
+              </AppText>
+              <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
+                Broadcasts from {ORG_NAME} IT
+              </AppText>
+            </View>
+            <View style={[styles.pinPill, { backgroundColor: colors.surfaceSunken }]}>
+              <AppText variant="bodyBold" color={colors.muted} style={{ fontSize: 10 }}>
+                PINNED
+              </AppText>
+            </View>
+          </Card>
+        </Pressable>
+      ) : null}
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<Search size={22} color={colors.muted} strokeWidth={2} />}
+          title="No people or spaces"
+          body={`Nothing matches “${q}”.`}
+        />
+      ) : (
+        <Card style={styles.listCard} padded={false}>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            renderItem={({ item, index }) => (
+              <Pressable
+                onPress={() => openThread(item.id)}
+                style={({ pressed }) => [
+                  styles.row,
+                  index < filtered.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
+                  pressed && { backgroundColor: colors.surfaceActive },
+                ]}
+              >
+                <Avatar initials={item.init} color={item.color} size={44} online={item.online} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={styles.rowTop}>
                   <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14, flexShrink: 1 }}>
@@ -106,7 +140,8 @@ export function ChatListScreen({ navigation }: Props) {
             </Pressable>
           )}
         />
-      </Card>
+        </Card>
+      )}
 
       <View style={styles.footNote}>
         <Lock size={12} color={colors.muted2} strokeWidth={2.2} />
@@ -179,7 +214,9 @@ export function ChatListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 20 },
   header: { paddingVertical: 12 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 },
+  pinned: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginBottom: 12 },
+  pinIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  pinPill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
   listCard: { overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
