@@ -77,12 +77,14 @@ export function HomeScreen({ navigation }: Props) {
                 navigation.navigate('Notifications');
               }}
               hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={unreadNotifs > 0 ? `Notifications, ${unreadNotifs} unread` : 'Notifications'}
               style={styles.iconBtn}
             >
               <Bell size={17} color="#FFFFFF" strokeWidth={2} />
               {unreadNotifs > 0 ? <View style={[styles.bellDot, { backgroundColor: colors.primary }]} /> : null}
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Profile')} style={[styles.avatar, { backgroundColor: colors.primary }]} hitSlop={4}>
+            <Pressable onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel="Your profile" style={[styles.avatar, { backgroundColor: colors.primary }]} hitSlop={4}>
               <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 12.5 }}>
                 {initials}
               </AppText>

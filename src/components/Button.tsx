@@ -134,6 +134,9 @@ export function Button({
       onPress={handlePress}
       onPressIn={pressIn}
       onPressOut={pressOut}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       android_ripple={ripple('rgba(255,255,255,0.16)') ?? undefined}
       style={[{ borderRadius: radii.button, overflow: 'hidden' }, outerLayoutStyle]}
     >

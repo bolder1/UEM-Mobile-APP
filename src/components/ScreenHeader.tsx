@@ -15,6 +15,9 @@ export function ScreenHeader({ title, onBack }: Props) {
     <View style={styles.row}>
       <Pressable
         onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        hitSlop={6}
         style={({ pressed }) => [
           styles.back,
           {

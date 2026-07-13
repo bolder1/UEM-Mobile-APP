@@ -7,6 +7,7 @@ import { Check } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { haptics } from '../../utils/haptics';
+import { useReducedMotion } from '../../utils/useReducedMotion';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -63,6 +64,8 @@ export function ApprovalPendingScreen({ navigation }: Props) {
                 haptics.tap();
                 navigation.replace('Permissions');
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Enter workspace"
               style={({ pressed }) => [styles.enterBtn, pressed && { transform: [{ scale: 0.97 }] }]}
             >
               <AppText variant="bodySemibold" color="#0F1319" style={{ fontSize: 15.5 }}>
@@ -70,7 +73,7 @@ export function ApprovalPendingScreen({ navigation }: Props) {
               </AppText>
             </Pressable>
           ) : (
-            <Pressable onPress={() => setApproved(true)} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: 12 }}>
+            <Pressable onPress={() => setApproved(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Continue, already approved" style={{ alignSelf: 'center', paddingVertical: 12 }}>
               <AppText variant="bodySemibold" color="rgba(255,255,255,0.8)" style={{ fontSize: 13.5 }}>
                 Already approved? Continue
               </AppText>
@@ -84,8 +87,10 @@ export function ApprovalPendingScreen({ navigation }: Props) {
 
 /** Concentric pulsing scan rings around the monogram — the "reviewing" illustration. */
 function ScanPulse() {
+  const reduced = useReducedMotion();
   const rings = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
   useEffect(() => {
+    if (reduced) return;
     const loops = rings.map((v, i) =>
       Animated.loop(
         Animated.timing(v, { toValue: 1, duration: 2600, delay: i * 850, easing: Easing.out(Easing.ease), useNativeDriver: true }),
@@ -93,7 +98,7 @@ function ScanPulse() {
     );
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
-  }, []);
+  }, [reduced]);
   return (
     <View style={styles.illo}>
       {rings.map((v, i) => (
@@ -114,16 +119,21 @@ function ScanPulse() {
 
 /** A check that pops in with radiating halos — the "enrolled" celebration. */
 function CheckBurst() {
+  const reduced = useReducedMotion();
   const pop = useRef(new Animated.Value(0)).current;
   const halos = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
   useEffect(() => {
+    if (reduced) {
+      pop.setValue(1);
+      return;
+    }
     Animated.spring(pop, { toValue: 1, useNativeDriver: true, damping: 9, stiffness: 140, mass: 0.7 }).start();
     const loops = halos.map((v, i) =>
       Animated.loop(Animated.timing(v, { toValue: 1, duration: 2400, delay: i * 1100, easing: Easing.out(Easing.ease), useNativeDriver: true })),
     );
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
-  }, []);
+  }, [reduced]);
   return (
     <View style={styles.illo}>
       {halos.map((v, i) => (
@@ -143,8 +153,10 @@ function CheckBurst() {
 }
 
 function Orbs({ approved }: { approved: boolean }) {
+  const reduced = useReducedMotion();
   const drift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (reduced) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(drift, { toValue: 1, duration: 9000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -153,7 +165,7 @@ function Orbs({ approved }: { approved: boolean }) {
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  }, [reduced]);
   const t1 = drift.interpolate({ inputRange: [0, 1], outputRange: [0, 18] });
   const t2 = drift.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
   const glow = approved ? 'rgba(93,240,216,0.28)' : 'rgba(125,118,255,0.30)';

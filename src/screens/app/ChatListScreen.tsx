@@ -155,6 +155,8 @@ export function ChatListScreen({ navigation }: Props) {
           haptics.tap();
           setSheetOpen(true);
         }}
+        accessibilityRole="button"
+        accessibilityLabel="New message"
         style={({ pressed }) => [
           styles.fab,
           { backgroundColor: colors.primary, shadowColor: colors.primary, transform: [{ scale: pressed ? 0.93 : 1 }] },

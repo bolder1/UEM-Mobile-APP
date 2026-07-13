@@ -48,6 +48,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             <TabButton
               key={route.key}
               focused={focused}
+              label={route.name}
               onPress={() => {
                 if (!focused) haptics.select();
                 navigation.navigate(route.name);
@@ -74,10 +75,12 @@ function TabButton({
   focused,
   onPress,
   children,
+  label,
 }: {
   focused: boolean;
   onPress: () => void;
   children: React.ReactNode;
+  label: string;
 }) {
   const bounce = useRef(new Animated.Value(1)).current;
   const press = useRef(new Animated.Value(1)).current;
@@ -94,6 +97,9 @@ function TabButton({
       onPress={onPress}
       onPressIn={() => Animated.spring(press, { toValue: 0.9, useNativeDriver: true, speed: 40, bounciness: 6 }).start()}
       onPressOut={() => Animated.spring(press, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 9 }).start()}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: focused }}
       android_ripple={ripple('rgba(0,0,0,0.06)', true) ?? undefined}
       style={styles.tab}
     >

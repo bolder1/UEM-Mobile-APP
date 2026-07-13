@@ -7,9 +7,10 @@ interface Props {
   value: boolean;
   onChange: (v: boolean) => void;
   onColor?: string;
+  label?: string;
 }
 
-export function ToggleSwitch({ value, onChange, onColor }: Props) {
+export function ToggleSwitch({ value, onChange, onColor, label }: Props) {
   const { colors } = useTheme();
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
 
@@ -30,6 +31,9 @@ export function ToggleSwitch({ value, onChange, onColor }: Props) {
         onChange(!value);
       }}
       hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={label}
     >
       <Animated.View
         style={{

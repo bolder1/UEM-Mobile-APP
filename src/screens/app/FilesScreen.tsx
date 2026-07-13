@@ -138,7 +138,7 @@ export function FilesScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn}>
             <ChevronLeft size={22} color={colors.text2} strokeWidth={2.2} />
           </Pressable>
           <AppText variant="display" style={{ fontSize: 22 }}>
@@ -150,6 +150,8 @@ export function FilesScreen() {
             haptics.tap();
             setFilterOpen(true);
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Filter and sort"
           android_ripple={ripple(colors.surfaceActive, true) ?? undefined}
           style={[styles.filterBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
