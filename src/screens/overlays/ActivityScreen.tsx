@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  LayoutGrid, ShieldCheck, Lock, RefreshCw, Cast, ShieldAlert, BadgeCheck, History,
+  LayoutGrid, ShieldCheck, Lock, RefreshCw, Cast, ShieldAlert, BadgeCheck, History, Megaphone, Eye,
 } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
@@ -27,6 +27,8 @@ function kindStyle(kind: ActivityKind, c: ColorScheme): { Icon: any; tint: strin
     case 'sync': return { Icon: RefreshCw, tint: c.infoTint, color: c.info };
     case 'cast': return { Icon: Cast, tint: c.violetTint, color: c.violet };
     case 'security': return { Icon: ShieldAlert, tint: c.dangerTint, color: c.danger };
+    case 'broadcast': return { Icon: Megaphone, tint: c.infoTint, color: c.info };
+    case 'privacy': return { Icon: Eye, tint: c.violetTint, color: c.violet };
     default: return { Icon: BadgeCheck, tint: c.successTint, color: c.success };
   }
 }

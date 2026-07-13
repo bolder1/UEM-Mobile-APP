@@ -16,6 +16,7 @@ import {
 import { useFonts as useSoraFonts, Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { Toast } from './src/components/Toast';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -36,7 +37,7 @@ function Root() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootNavigator />
       <Toast />

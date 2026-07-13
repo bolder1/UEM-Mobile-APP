@@ -143,7 +143,7 @@ interface AppStoreState {
 
   // actions — audit + feedback
   logActivity: (kind: ActivityKind, title: string, detail: string, actor?: string) => void;
-  showToast: (message: string, tone?: ToastTone) => void;
+  showToast: (message: string, tone?: ToastTone, opts?: { logged?: boolean; actor?: string }) => void;
   hideToast: () => void;
 
   // actions — unenroll / reset
@@ -211,13 +211,34 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       return false;
     }
     set((st) => ({ form: { ...st.form, empId: st.form.empId || 'ACM-1042' } }));
-    later(() => set({ approved: true }), 7000);
+    get().logActivity('enroll', 'Enrollment requested', 'Sent to IT for approval', 'you');
+    later(() => get().setApproved(true), 7000);
     return true;
   },
 
-  setApproved: (v) => set({ approved: v }),
+  setApproved: (v) => {
+    const was = get().approved;
+    set({ approved: v });
+    if (v && !was) {
+      get().logActivity('enroll', 'Device enrolled', 'Personal (BYOD) · work profile created', 'IT · Ravi Kumar');
+    }
+  },
 
-  setPerm: (key, v) => set((s) => ({ perms: { ...s.perms, [key]: v } })),
+  setPerm: (key, v) => {
+    const changed = get().perms[key] !== v;
+    set((s) => ({ perms: { ...s.perms, [key]: v } }));
+    // Location is a privacy-relevant toggle reachable post-enrollment; make it
+    // audit-visible. The onboarding permission gate stays silent.
+    if (key === 'loc' && changed) {
+      get().logActivity(
+        'privacy',
+        v ? 'Location sharing turned on' : 'Location sharing turned off',
+        v ? 'Used only for office geofence check-in' : 'IT can no longer see your location',
+        'you',
+      );
+      get().showToast(v ? 'Location sharing on' : 'Location sharing off', 'info', { logged: true, actor: 'you' });
+    }
+  },
 
   setThemeMode: (m) => set({ themeMode: m }),
   setBrandTheme: (b) => set({ brandTheme: b }),
@@ -229,7 +250,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       later(() => {
         set({ vpn: 'on', vpnSecs: 0, vpnDown: 186, vpnUp: 42, vpnPing: 18 });
         get().logActivity('tunnel', 'Secure tunnel connected', 'WireGuard® · office gateway', 'you');
-        get().showToast('Secure tunnel connected');
+        get().showToast('Secure tunnel connected', 'success', { logged: true, actor: 'you' });
         vpnInterval = setInterval(() => {
           set((st) => {
             const dn = Math.max(64, Math.min(324, st.vpnDown + Math.round(Math.random() * 96 - 48)));
@@ -242,7 +263,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     } else if (s.vpn === 'on') {
       if (vpnInterval) clearInterval(vpnInterval);
       set({ vpn: 'off', vpnSecs: 0 });
-      get().showToast('Secure tunnel disconnected', 'info');
+      get().logActivity('tunnel', 'Secure tunnel disconnected', 'Traffic no longer routed through work', 'you');
+      get().showToast('Secure tunnel disconnected', 'info', { logged: true, actor: 'you' });
     }
   },
 
@@ -253,7 +275,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     if (st === 'restricted') {
       set((s) => ({ appSt: { ...s.appSt, [id]: 'requested' } }));
       get().logActivity('app', `Requested ${name}`, 'Sent to IT for approval', 'you');
-      get().showToast(`Requested ${name} — IT will review`, 'info');
+      get().showToast(`Requested ${name} — IT will review`, 'info', { logged: true, actor: 'you' });
       return;
     }
     if (st === 'available' || st === 'update') {
@@ -266,7 +288,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
           delete appInstallIntervals[id];
           set({ appSt: { ...cur.appSt, [id]: 'installed' }, progress: { ...cur.progress, [id]: 100 } });
           get().logActivity('app', `${wasUpdate ? 'Updated' : 'Installed'} ${name}`, 'Pushed by IT · work profile', 'you');
-          get().showToast(`${wasUpdate ? 'Updated' : 'Installed'} ${name}`);
+          get().showToast(`${wasUpdate ? 'Updated' : 'Installed'} ${name}`, 'success', { logged: true, actor: 'you' });
         } else {
           set({ progress: { ...cur.progress, [id]: p } });
         }
@@ -281,11 +303,16 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     later(() => {
       set((s) => ({ certs: { ...s.certs, [id]: 'installed' } }));
       get().logActivity('cert', `Installed ${name}`, 'Issued by Acme Corp Certificate Authority', 'you');
-      get().showToast('Certificate installed');
+      get().showToast('Certificate installed', 'success', { logged: true, actor: 'you' });
     }, 1500);
   },
 
-  ackBroadcast: () => set({ broadcastAcked: true }),
+  ackBroadcast: () => {
+    if (get().broadcastAcked) return;
+    set({ broadcastAcked: true });
+    get().logActivity('broadcast', 'Acknowledged IT broadcast', 'Tunnel gateway maintenance notice', 'you');
+    get().showToast('Broadcast acknowledged', 'success', { logged: true, actor: 'you' });
+  },
 
   syncNow: () => {
     if (get().syncing) return;
@@ -293,7 +320,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     later(() => {
       set({ syncing: false, lastSync: 'just now' });
       get().logActivity('sync', 'Synced with IT', 'Policy, inventory and compliance refreshed', 'you');
-      get().showToast('Device synced');
+      get().showToast('Device synced', 'success', { logged: true, actor: 'you' });
     }, 1600);
   },
 
@@ -355,6 +382,18 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({ cast: 'connecting', castTarget: target, castSecs: 0, incomingCastSession: false });
     later(() => {
       set({ cast: 'live', castSecs: 0 });
+      const actor = target.isAssist ? 'IT · Ravi Kumar' : 'you';
+      get().logActivity(
+        'cast',
+        'Screen share started',
+        target.isAssist ? `${target.name} can see your screen` : target.name,
+        actor,
+      );
+      get().showToast(
+        target.isAssist ? 'IT can now see your screen' : 'Screen share started',
+        'info',
+        { logged: true, actor },
+      );
       castInterval = setInterval(() => set((st) => ({ castSecs: st.castSecs + 1 })), 1000);
     }, 2200);
   },
@@ -373,13 +412,10 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         duration: `${mm}m ${ss}s`,
         quality: 'HD',
       };
+      const actor = s.castTarget.isAssist ? 'IT · Ravi Kumar' : 'you';
       set((st) => ({ castHistory: [entry, ...st.castHistory] }));
-      get().logActivity(
-        'cast',
-        'Screen share ended',
-        `${entry.targetName} · ${entry.duration}`,
-        s.castTarget.isAssist ? 'IT · Ravi Kumar' : 'you',
-      );
+      get().logActivity('cast', 'Screen share ended', `${entry.targetName} · ${entry.duration}`, actor);
+      get().showToast('Screen share ended', 'info', { logged: true, actor });
     }
     set({ cast: 'idle', castTarget: null, castSecs: 0 });
   },
@@ -398,7 +434,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       ].slice(0, 60),
     })),
 
-  showToast: (message, tone = 'success') => set({ toast: { id: toastSeq++, message, tone } }),
+  showToast: (message, tone = 'success', opts) =>
+    set({ toast: { id: toastSeq++, message, tone, logged: opts?.logged, actor: opts?.actor } }),
   hideToast: () => set({ toast: null }),
 
   setUnVal: (v) => set({ unVal: v }),

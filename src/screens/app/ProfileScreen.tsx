@@ -36,6 +36,7 @@ export function ProfileScreen({ navigation }: Props) {
   const notifications = useAppStore((s) => s.notifications);
   const lastSync = useAppStore((s) => s.lastSync);
   const openChat = useAppStore((s) => s.openChat);
+  const logActivity = useAppStore((s) => s.logActivity);
   const [unOpen, setUnOpen] = useState(false);
   const [unVal, setUnVal] = useState('');
 
@@ -50,6 +51,7 @@ export function ProfileScreen({ navigation }: Props) {
 
   const doUnenroll = () => {
     if (!canRemove) return;
+    logActivity('enroll', 'Device removed from management', 'You unenrolled this device', 'you');
     navigation.getParent()?.reset({ index: 0, routes: [{ name: 'Left' }] });
   };
 

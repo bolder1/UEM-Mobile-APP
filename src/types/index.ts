@@ -120,7 +120,16 @@ export interface NotificationItem {
 }
 
 // Audit trail — every state-changing action a person or IT takes on this device.
-export type ActivityKind = 'app' | 'cert' | 'tunnel' | 'sync' | 'cast' | 'security' | 'enroll';
+export type ActivityKind =
+  | 'app'
+  | 'cert'
+  | 'tunnel'
+  | 'sync'
+  | 'cast'
+  | 'security'
+  | 'enroll'
+  | 'broadcast'
+  | 'privacy';
 
 export interface ActivityEntry {
   id: string;
@@ -137,4 +146,8 @@ export interface ToastMsg {
   id: number;
   message: string;
   tone: ToastTone;
+  // Audit-backed toasts carry the actor and render "Logged · Just now · {actor}"
+  // with a one-tap path to the Activity log.
+  logged?: boolean;
+  actor?: string;
 }

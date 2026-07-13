@@ -338,21 +338,3 @@ export const INITIAL_ACTIVITY: ActivityEntry[] = [
   { id: 'seed-auth', kind: 'app', title: 'Installed Authenticator', detail: 'Acme Corp IT · required app', time: 'Jun 18', actor: 'IT · Ravi Kumar' },
   { id: 'seed-enroll', kind: 'enroll', title: 'Device enrolled', detail: 'Personal (BYOD) · work profile created', time: 'Jun 18', actor: 'you' },
 ];
-
-export const ONBOARDING_STEPS = [
-  {
-    title: 'Your secure workspace key',
-    body: 'One calm app for everything work on this device — enrolled, compliant and under your control.',
-    cta: 'Continue',
-  },
-  {
-    title: 'One tap to connect',
-    body: 'The WireGuard® secure tunnel brings work apps and files to you — status always glanceable.',
-    cta: 'Continue',
-  },
-  {
-    title: 'You stay in control',
-    body: "See exactly what your company can and can't see. Personal data stays personal — always.",
-    cta: 'Get started',
-  },
-];
