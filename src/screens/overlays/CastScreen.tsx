@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Cast, Monitor, Headphones, Lock, Shield, Square, Clock, Signal, History, UserCog } from 'lucide-react-native';
+import { Cast, Monitor, Headphones, Lock, Shield, Square, Clock, Signal, History, UserCog, Eye, Check } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { BottomSheet } from '../../components/BottomSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { PulseRings, SpinningDashedRing, PulseDot } from '../../components/Animations';
 import { useAppStore, ORG_NAME } from '../../state/store';
@@ -31,6 +32,34 @@ export function CastScreen({ navigation }: Props) {
   const castHistory = useAppStore((s) => s.castHistory);
   const incomingCastSession = useAppStore((s) => s.incomingCastSession);
   const dismissIncomingCast = useAppStore((s) => s.dismissIncomingCast);
+  const logActivity = useAppStore((s) => s.logActivity);
+  const showToast = useAppStore((s) => s.showToast);
+
+  // Accepting an IT screen share is the High-stake action (someone sees your
+  // screen), so it goes through an explicit consent sheet. Mirroring to a
+  // meeting-room display is low-stake and starts directly.
+  const [consentTarget, setConsentTarget] = useState<CastTarget | null>(null);
+
+  const requestCast = (t: CastTarget) => {
+    if (t.isAssist) {
+      setConsentTarget(t);
+    } else {
+      startCast(t);
+    }
+  };
+
+  const acceptCast = () => {
+    const t = consentTarget;
+    setConsentTarget(null);
+    if (t) startCast(t);
+  };
+
+  const declineCast = () => {
+    setConsentTarget(null);
+    dismissIncomingCast();
+    logActivity('cast', 'Declined IT screen share', 'Ravi Kumar · IT Admin', 'you');
+    showToast('Screen share declined', 'info', { logged: true, actor: 'you' });
+  };
 
   const elapsed = `${Math.floor(castSecs / 60)}:${('0' + (castSecs % 60)).slice(-2)}`;
   const stageColor = cast === 'live' ? colors.success : colors.primary;
@@ -50,10 +79,11 @@ export function CastScreen({ navigation }: Props) {
                 <Monitor size={24} color={colors.primary} strokeWidth={2} />
               </View>
               <AppText variant="displaySemibold" style={{ fontSize: 17, marginBottom: 4 }}>
-                Session available
+                IT is requesting your screen
               </AppText>
               <AppText variant="body" color={colors.text2} style={{ fontSize: 13, lineHeight: 19 }}>
-                An IT admin has started a remote session. Use Join session below to connect.
+                Ravi Kumar (IT Admin) wants to view this screen to help you. Review the request below — nothing is
+                shared until you allow it.
               </AppText>
               <Pressable onPress={dismissIncomingCast} hitSlop={8} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
                 <AppText variant="bodySemibold" color={colors.muted} style={{ fontSize: 12.5 }}>
@@ -78,7 +108,7 @@ export function CastScreen({ navigation }: Props) {
           </AppText>
           <View style={{ gap: 10 }}>
             {CAST_TARGETS.map((t) => (
-              <TargetRow key={t.id} target={t} onPress={() => startCast(t)} />
+              <TargetRow key={t.id} target={t} onPress={() => requestCast(t)} />
             ))}
           </View>
 
@@ -130,10 +160,10 @@ export function CastScreen({ navigation }: Props) {
         {incomingCastSession && (
           <View style={[styles.footer, { borderTopColor: colors.hairline, backgroundColor: colors.bg }]}>
             <Button
-              label="Join session"
+              label="Review request"
               onPress={() => {
                 haptics.tap();
-                startCast(IT_ASSIST_TARGET);
+                requestCast(IT_ASSIST_TARGET);
               }}
             />
           </View>
@@ -221,7 +251,61 @@ export function CastScreen({ navigation }: Props) {
         )}
         </>
       )}
+
+      <BottomSheet visible={!!consentTarget} onClose={() => setConsentTarget(null)} maxHeightPct={90}>
+        <ScrollView contentContainerStyle={styles.consent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.consentIcon, { backgroundColor: colors.amberTint }]}>
+            <Eye size={24} color={colors.amber} strokeWidth={2} />
+          </View>
+          <AppText variant="display" style={{ fontSize: 19, marginBottom: 6 }}>
+            Let IT see your screen?
+          </AppText>
+          <AppText variant="body" color={colors.muted} style={{ fontSize: 13, lineHeight: 20 }}>
+            {consentTarget?.sub ?? 'Ravi Kumar · IT Admin'} is asking to view this screen live to help you. Nothing is
+            shared until you allow it, and you can end the session at any time.
+          </AppText>
+
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.consentGroupLabel}>
+            WHILE YOU SHARE, THEY CAN SEE
+          </AppText>
+          <ConsentRow tone="see" text="Everything on your screen, live" />
+
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.consentGroupLabel}>
+            THEY CAN NEVER
+          </AppText>
+          <ConsentRow tone="never" text="See your screen once you tap End" />
+          <ConsentRow tone="never" text="Tap, type or control your device" />
+          {form.own === 'personal' && <ConsentRow tone="never" text="See your personal apps or data" />}
+
+          <View style={styles.consentActions}>
+            <Button label="Decline" variant="secondary" style={{ flex: 1 }} onPress={declineCast} />
+            <Button label="Allow screen share" style={{ flex: 1.5 }} onPress={acceptCast} />
+          </View>
+          <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, textAlign: 'center', marginTop: 12 }}>
+            Your choice is logged to Activity.
+          </AppText>
+        </ScrollView>
+      </BottomSheet>
     </SafeAreaView>
+  );
+}
+
+function ConsentRow({ tone, text }: { tone: 'see' | 'never'; text: string }) {
+  const { colors } = useTheme();
+  const isSee = tone === 'see';
+  return (
+    <View style={styles.consentRow}>
+      <View style={[styles.consentRowIcon, { backgroundColor: isSee ? colors.amberTint : colors.successTint }]}>
+        {isSee ? (
+          <Eye size={13} color={colors.amber} strokeWidth={2.4} />
+        ) : (
+          <Check size={13} color={colors.success} strokeWidth={2.4} />
+        )}
+      </View>
+      <AppText variant="bodyMedium" style={{ fontSize: 13, flex: 1 }}>
+        {text}
+      </AppText>
+    </View>
   );
 }
 
@@ -330,4 +414,10 @@ const styles = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
   liveInfoCard: { width: '100%', marginTop: 18, paddingHorizontal: 16 },
   infoLine: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
+  consent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 26 },
+  consentIcon: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  consentGroupLabel: { fontSize: 11, letterSpacing: 0.6, marginTop: 20, marginBottom: 10 },
+  consentRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 6 },
+  consentRowIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  consentActions: { flexDirection: 'row', gap: 10, marginTop: 24 },
 });
