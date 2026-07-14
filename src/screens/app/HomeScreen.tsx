@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight, Cast } from 'lucide-react-native';
+import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight, Cast, Activity as ActivityIcon } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -48,6 +48,7 @@ export function HomeScreen({ navigation }: Props) {
   const vpnOn = vpn === 'on';
   const castLive = cast === 'live';
   const castNudge = incomingCast || castLive;
+  const actionsCount = (castNudge ? 1 : 0) + (certsPending > 0 ? 1 : 0) + (!broadcastAcked ? 1 : 0);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -99,7 +100,7 @@ export function HomeScreen({ navigation }: Props) {
           </AppText>
 
           <View style={styles.hchip}>
-            <View style={[styles.dot, { backgroundColor: vpnOn ? colors.successStrong : '#3DBB7D' }]} />
+            <View style={[styles.dot, { backgroundColor: colors.successStrong }]} />
             <AppText variant="bodySemibold" color="rgba(255,255,255,0.9)" style={{ fontSize: 12 }}>
               {vpnOn ? 'Secure tunnel on · WireGuard®' : `Compliant · synced ${lastSync}`}
             </AppText>
@@ -107,17 +108,98 @@ export function HomeScreen({ navigation }: Props) {
         </DarkPanel>
 
         <View style={styles.body}>
-          {/* ---- uniform quick tiles ---- */}
-          <View style={styles.quads}>
-            <Quad label="Tunnel" active={vpnOn} onPress={() => navigation.navigate('Vpn')}
-              icon={<Lock size={19} color={colors.text3} strokeWidth={2} />} />
-            <Quad label="Files" onPress={() => navigation.navigate('Files')}
-              icon={<Folder size={19} color={colors.text3} strokeWidth={2} />} />
-            <Quad label="Apps" badge={appsToAct} onPress={() => navigation.navigate('Apps')}
-              icon={<LayoutGrid size={19} color={colors.text3} strokeWidth={2} />} />
-            <Quad label="Certs" badge={certsPending} onPress={() => navigation.navigate('Certs')}
-              icon={<ShieldCheck size={19} color={colors.text3} strokeWidth={2} />} />
-          </View>
+          {/* ---- needs your action (banner only when something needs you) ---- */}
+          {actionsCount > 0 ? (
+            <>
+              <View style={styles.sectionHead}>
+                <AppText variant="displaySemibold" style={{ fontSize: 14 }}>Needs your action</AppText>
+                <View style={[styles.countPill, { backgroundColor: colors.primary }]}>
+                  <AppText variant="bodyBold" color="#FFFFFF" style={{ fontSize: 11 }}>{actionsCount}</AppText>
+                </View>
+              </View>
+              <View style={{ gap: 10 }}>
+                {castNudge ? (
+                  <Pressable onPress={() => { haptics.tap(); navigation.navigate('Cast'); }}>
+                    <Card style={styles.rowCard}>
+                      <View style={[styles.rowIcon, { backgroundColor: castLive ? colors.successTint : colors.primaryTint }]}>
+                        <Cast size={20} color={castLive ? colors.success : colors.primary} strokeWidth={2} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="bodySemibold" style={{ fontSize: 14 }}>Screen cast</AppText>
+                        <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                          {castLive ? 'Session live with IT · Ravi Kumar' : 'IT · Ravi Kumar wants to start a session'}
+                        </AppText>
+                      </View>
+                      {castLive ? (
+                        <View style={styles.liveTag}>
+                          <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                          <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11 }}>Live</AppText>
+                        </View>
+                      ) : (
+                        <View style={[styles.pill, { backgroundColor: colors.primary }]}>
+                          <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 12 }}>Review</AppText>
+                        </View>
+                      )}
+                    </Card>
+                  </Pressable>
+                ) : null}
+
+                {certsPending > 0 ? (
+                  <Pressable onPress={() => { haptics.tap(); navigation.navigate('Certs'); }}>
+                    <Card style={styles.rowCard}>
+                      <View style={[styles.rowIcon, { backgroundColor: colors.amberTint }]}>
+                        <ShieldCheck size={20} color={colors.amber} strokeWidth={2} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="bodySemibold" style={{ fontSize: 14 }}>Certificates</AppText>
+                        <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                          {certsPending} {certsPending === 1 ? 'needs' : 'need'} installing · Wi-Fi &amp; tunnel
+                        </AppText>
+                      </View>
+                      <View style={[styles.pill, { backgroundColor: colors.primary }]}>
+                        <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 12 }}>Install</AppText>
+                      </View>
+                    </Card>
+                  </Pressable>
+                ) : null}
+
+                {!broadcastAcked ? (
+                  <Card style={[styles.rowCard, { alignItems: 'flex-start' }]}>
+                    <View style={[styles.miniDot, { backgroundColor: colors.info, marginTop: 6 }]} />
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>From your IT team</AppText>
+                      <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1, lineHeight: 17 }}>
+                        Tunnel gateway maintenance Saturday 2–4 AM IST. Sessions may briefly drop.
+                      </AppText>
+                    </View>
+                    <Pressable
+                      onPress={() => { haptics.tap(); ackBroadcast(); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Acknowledge IT broadcast"
+                      style={[styles.pillOutline, { borderColor: colors.borderStrong }]}
+                    >
+                      <AppText variant="bodySemibold" color={colors.text2} style={{ fontSize: 12 }}>Got it</AppText>
+                    </Pressable>
+                  </Card>
+                ) : null}
+              </View>
+            </>
+          ) : (
+            <>
+              <AppText variant="displaySemibold" style={[styles.sectionLabel, styles.sectionLabelFirst]}>Your device</AppText>
+              <Card style={styles.rowCard}>
+                <View style={[styles.rowIcon, { backgroundColor: colors.successTint }]}>
+                  <ShieldCheck size={20} color={colors.success} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodySemibold" style={{ fontSize: 14 }}>You&rsquo;re all caught up</AppText>
+                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                    Nothing needs you right now · synced {lastSync}
+                  </AppText>
+                </View>
+              </Card>
+            </>
+          )}
 
           {/* ---- privacy signature ---- */}
           <AppText variant="displaySemibold" style={styles.sectionLabel}>Your privacy</AppText>
@@ -136,73 +218,21 @@ export function HomeScreen({ navigation }: Props) {
             </Card>
           </Pressable>
 
-          {/* ---- needs your action ---- */}
-          {(certsPending > 0 || castNudge || !broadcastAcked) ? (
-            <AppText variant="displaySemibold" style={styles.sectionLabel}>Needs your action</AppText>
-          ) : null}
-          <View style={{ gap: 10 }}>
-            {castNudge ? (
-              <Pressable onPress={() => { haptics.tap(); navigation.navigate('Cast'); }}>
-                <Card style={styles.rowCard}>
-                  <View style={[styles.rowIcon, { backgroundColor: castLive ? colors.successTint : colors.primaryTint }]}>
-                    <Cast size={20} color={castLive ? colors.success : colors.primary} strokeWidth={2} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="bodySemibold" style={{ fontSize: 14 }}>Screen cast</AppText>
-                    <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-                      {castLive ? 'Session live with IT · Ravi Kumar' : 'IT · Ravi Kumar wants to start a session'}
-                    </AppText>
-                  </View>
-                  {castLive ? (
-                    <View style={styles.liveTag}>
-                      <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
-                      <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11 }}>Live</AppText>
-                    </View>
-                  ) : (
-                    <View style={[styles.pill, { backgroundColor: colors.primary }]}>
-                      <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 12 }}>Review</AppText>
-                    </View>
-                  )}
-                </Card>
-              </Pressable>
-            ) : null}
-
-            {certsPending > 0 ? (
-              <Pressable onPress={() => { haptics.tap(); navigation.navigate('Certs'); }}>
-                <Card style={styles.rowCard}>
-                  <View style={[styles.rowIcon, { backgroundColor: colors.amberTint }]}>
-                    <ShieldCheck size={20} color={colors.amber} strokeWidth={2} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="bodySemibold" style={{ fontSize: 14 }}>Certificates</AppText>
-                    <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-                      {certsPending} {certsPending === 1 ? 'needs' : 'need'} installing · Wi-Fi &amp; tunnel
-                    </AppText>
-                  </View>
-                  <View style={[styles.pill, { backgroundColor: colors.primary }]}>
-                    <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 12 }}>Install</AppText>
-                  </View>
-                </Card>
-              </Pressable>
-            ) : null}
-
-            {!broadcastAcked ? (
-              <Card style={[styles.rowCard, { alignItems: 'flex-start' }]}>
-                <View style={[styles.miniDot, { backgroundColor: colors.info, marginTop: 6 }]} />
-                <View style={{ flex: 1 }}>
-                  <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>From your IT team</AppText>
-                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1, lineHeight: 17 }}>
-                    Tunnel gateway maintenance Saturday 2–4 AM IST. Sessions may briefly drop.
-                  </AppText>
-                </View>
-                <Pressable
-                  onPress={() => { haptics.tap(); ackBroadcast(); }}
-                  style={[styles.pillOutline, { borderColor: colors.borderStrong }]}
-                >
-                  <AppText variant="bodySemibold" color={colors.text2} style={{ fontSize: 12 }}>Got it</AppText>
-                </Pressable>
-              </Card>
-            ) : null}
+          {/* ---- quick access launchpad ---- */}
+          <AppText variant="displaySemibold" style={styles.sectionLabel}>Quick access</AppText>
+          <View style={styles.grid}>
+            <QuickTile label="Secure tunnel" active={vpnOn} onPress={() => navigation.navigate('Vpn')}
+              icon={<Lock size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Files" onPress={() => navigation.navigate('Files')}
+              icon={<Folder size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Certificates" badge={certsPending} onPress={() => navigation.navigate('Certs')}
+              icon={<ShieldCheck size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Screen cast" onPress={() => navigation.navigate('Cast')}
+              icon={<Cast size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Activity" onPress={() => navigation.navigate('Activity')}
+              icon={<ActivityIcon size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Apps" badge={appsToAct} onPress={() => navigation.navigate('Apps')}
+              icon={<LayoutGrid size={19} color={colors.text3} strokeWidth={2} />} />
           </View>
         </View>
       </ScrollView>
@@ -210,7 +240,7 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-function Quad({
+function QuickTile({
   icon, label, badge, active, onPress,
 }: {
   icon: React.ReactNode; label: string; badge?: number; active?: boolean; onPress: () => void;
@@ -220,19 +250,21 @@ function Quad({
     <Pressable
       onPress={() => { haptics.tap(); onPress(); }}
       android_ripple={ripple(colors.surfaceActive) ?? undefined}
+      accessibilityRole="button"
+      accessibilityLabel={badge && badge > 0 ? `${label}, ${badge} pending` : label}
       style={({ pressed }) => [
-        styles.quad,
-        { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ scale: pressed ? 0.95 : 1 }] },
+        styles.qtile,
+        { backgroundColor: colors.surface, borderColor: colors.border, transform: [{ scale: pressed ? 0.96 : 1 }] },
       ]}
     >
       {badge && badge > 0 ? (
-        <View style={[styles.quadBadge, { backgroundColor: colors.text }]}>
+        <View style={[styles.qbadge, { backgroundColor: colors.text }]}>
           <AppText variant="bodyBold" color={colors.bg} style={{ fontSize: 9.5 }}>{badge}</AppText>
         </View>
       ) : null}
-      <View style={[styles.quadIcon, { backgroundColor: colors.surfaceSunken }]}>{icon}</View>
-      <AppText variant="bodySemibold" color={colors.text2} style={{ fontSize: 10.5 }}>{label}</AppText>
-      {active ? <View style={[styles.activeBar, { backgroundColor: colors.successStrong }]} /> : null}
+      <View style={[styles.qicon, { backgroundColor: colors.surfaceSunken }]}>{icon}</View>
+      <AppText variant="bodySemibold" color={colors.text2} style={{ fontSize: 11 }}>{label}</AppText>
+      {active ? <View style={[styles.qactive, { backgroundColor: colors.successStrong }]} /> : null}
     </Pressable>
   );
 }
@@ -250,12 +282,15 @@ const styles = StyleSheet.create({
   },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   body: { paddingHorizontal: 20, paddingTop: 18 },
-  quads: { flexDirection: 'row', gap: 9 },
-  quad: { flex: 1, borderWidth: 1, borderRadius: 16, paddingVertical: 13, alignItems: 'center', gap: 8, position: 'relative', overflow: 'hidden' },
-  quadIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  quadBadge: { position: 'absolute', top: 8, right: 9, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, zIndex: 2 },
-  activeBar: { position: 'absolute', bottom: 0, left: 14, right: 14, height: 3, borderRadius: 2 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+  qtile: { width: '31.5%', borderWidth: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center', gap: 8, position: 'relative', overflow: 'hidden' },
+  qicon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  qbadge: { position: 'absolute', top: 8, right: 9, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, zIndex: 2 },
+  qactive: { position: 'absolute', bottom: 0, left: 16, right: 16, height: 3, borderRadius: 2 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 10, marginHorizontal: 2 },
+  countPill: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   sectionLabel: { fontSize: 14, marginTop: 22, marginBottom: 10, marginHorizontal: 2 },
+  sectionLabelFirst: { marginTop: 4 },
   rowCard: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 14 },
   rowIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pill: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },

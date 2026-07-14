@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, RefreshCw, X, Lock, UserCog } from 'lucide-react-native';
+import { Search, RefreshCw, X, Lock, UserCog, Download, Check, Clock } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { IconButton } from '../../components/IconButton';
 import { ProgressRing } from '../../components/ProgressRing';
 import { BottomSheet } from '../../components/BottomSheet';
 import { useAppStore, ORG_NAME } from '../../state/store';
@@ -213,7 +214,7 @@ function AppSection({
                 )}
               </View>
             </Pressable>
-            <AppActionButton status={status} onPress={() => appAction(app.id)} />
+            <AppActionButton status={status} name={app.name} onPress={() => appAction(app.id)} />
           </View>
         );
       })}
@@ -221,26 +222,48 @@ function AppSection({
   );
 }
 
-function AppActionButton({ status, onPress }: { status: AppInstallStatus; onPress: () => void }) {
+function AppActionButton({ status, name, onPress }: { status: AppInstallStatus; name: string; onPress: () => void }) {
   const { colors } = useTheme();
-  if (status === 'available') return <Button label="Install" size="sm" onPress={onPress} style={{ width: ACTION_BTN_WIDTH }} />;
+  if (status === 'available')
+    return (
+      <IconButton
+        variant="primary"
+        onPress={onPress}
+        accessibilityLabel={`Install ${name}`}
+        icon={<Download size={19} color={colors.white} strokeWidth={2.2} />}
+      />
+    );
   if (status === 'update')
     return (
-      <Button label="Update" size="sm" variant="secondary" onPress={onPress} style={{ width: ACTION_BTN_WIDTH, borderColor: colors.primary }} />
+      <IconButton
+        variant="tinted"
+        onPress={onPress}
+        accessibilityLabel={`Update ${name}`}
+        icon={<RefreshCw size={18} color={colors.primary} strokeWidth={2.2} />}
+      />
     );
-  if (status === 'installed')
-    return <Button label="Open" size="sm" variant="secondary" onPress={() => {}} style={{ width: ACTION_BTN_WIDTH }} />;
   if (status === 'restricted')
-    return <Button label="Request" size="sm" variant="secondary" onPress={onPress} style={{ width: ACTION_BTN_WIDTH }} />;
+    return (
+      <IconButton
+        variant="neutral"
+        onPress={onPress}
+        accessibilityLabel={`Request access to ${name}`}
+        icon={<Lock size={17} color={colors.text3} strokeWidth={2.2} />}
+      />
+    );
   if (status === 'requested')
     return (
-      <View style={[styles.requestedTag, { width: ACTION_BTN_WIDTH, backgroundColor: colors.amberTint }]}>
-        <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 11.5 }}>
-          Pending
-        </AppText>
+      <View accessible accessibilityLabel={`${name} requested, waiting on IT approval`} style={[styles.statusSlot, { backgroundColor: colors.amberTint }]}>
+        <Clock size={18} color={colors.amber} strokeWidth={2.2} />
       </View>
     );
-  return <View style={{ width: ACTION_BTN_WIDTH }} />; // installing — progress shown on the icon instead
+  if (status === 'installed')
+    return (
+      <View accessible accessibilityLabel={`${name} installed`} style={[styles.statusSlot, { backgroundColor: colors.successTint }]}>
+        <Check size={19} color={colors.success} strokeWidth={2.6} />
+      </View>
+    );
+  return <View style={styles.statusSlot} />; // installing — progress shown on the tile instead
 }
 
 function AppDetail({
@@ -311,11 +334,16 @@ function AppDetail({
                 Request sent — waiting on IT approval
               </AppText>
             </View>
+          ) : status === 'installed' ? (
+            <View style={styles.installedRow}>
+              <Check size={16} color={colors.success} strokeWidth={2.6} />
+              <AppText variant="bodySemibold" color={colors.success} style={{ fontSize: 13 }}>
+                Installed on this device
+              </AppText>
+            </View>
           ) : (
             <Button
-              label={
-                status === 'available' ? 'Install' : status === 'update' ? 'Update' : status === 'installed' ? 'Open' : 'Request access'
-              }
+              label={status === 'available' ? 'Install' : status === 'update' ? 'Update' : 'Request access'}
               onPress={() => {
                 haptics.tap();
                 onAction();
@@ -387,7 +415,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   installSquare: { width: 11, height: 11, borderRadius: 2, backgroundColor: '#FFFFFF' },
-  requestedTag: { alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 9 },
+  statusSlot: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  installedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 14 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingBottom: 16, paddingTop: 8 },
   closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderBottomWidth: 1 },

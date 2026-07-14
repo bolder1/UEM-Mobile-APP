@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BadgeCheck, X, ShieldCheck, UserCog } from 'lucide-react-native';
+import { BadgeCheck, X, ShieldCheck, UserCog, Download, Check } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { IconButton } from '../../components/IconButton';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Spinner } from '../../components/Animations';
@@ -18,10 +19,6 @@ import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Certs'>;
-
-// Matches the Apps screen's action-button footprint so both catalogs read as
-// one consistent list system.
-const ACTION_BTN_WIDTH = 84;
 
 function fmtExpiry(iso: string) {
   const d = new Date(iso);
@@ -167,7 +164,7 @@ function CertSection({
                 </View>
               </View>
             </Pressable>
-            <CertActionButton status={status} onPress={() => onInstall(c.id)} />
+            <CertActionButton status={status} name={c.name} onInstall={() => onInstall(c.id)} />
           </View>
         );
       })}
@@ -175,22 +172,28 @@ function CertSection({
   );
 }
 
-function CertActionButton({ status, onPress }: { status: string; onPress: () => void }) {
+function CertActionButton({ status, name, onInstall }: { status: string; name: string; onInstall: () => void }) {
   const { colors } = useTheme();
-  if (status === 'pending') return <Button label="Install" size="sm" onPress={onPress} style={{ width: ACTION_BTN_WIDTH }} />;
+  if (status === 'pending')
+    return (
+      <IconButton
+        variant="primary"
+        onPress={onInstall}
+        accessibilityLabel={`Install ${name}`}
+        icon={<Download size={19} color={colors.white} strokeWidth={2.2} />}
+      />
+    );
   if (status === 'installing')
     return (
-      <View style={{ width: ACTION_BTN_WIDTH, alignItems: 'center' }}>
+      <View accessible accessibilityLabel={`Installing ${name}`} style={styles.statusSlot}>
         <Spinner>
           <BadgeCheck size={18} color={colors.primary} strokeWidth={2.4} />
         </Spinner>
       </View>
     );
   return (
-    <View style={[styles.installedTag, { width: ACTION_BTN_WIDTH, backgroundColor: colors.successTint }]}>
-      <AppText variant="bodySemibold" color={colors.success} style={{ fontSize: 11.5 }}>
-        Done
-      </AppText>
+    <View accessible accessibilityLabel={`${name} installed`} style={[styles.statusSlot, { backgroundColor: colors.successTint }]}>
+      <Check size={19} color={colors.success} strokeWidth={2.6} />
     </View>
   );
 }
@@ -309,7 +312,7 @@ const styles = StyleSheet.create({
   icon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  installedTag: { alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 9 },
+  statusSlot: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   footNote: { fontSize: 11.5, lineHeight: 17, marginTop: 4, marginHorizontal: 4 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8 },
   closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },

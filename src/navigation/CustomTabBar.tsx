@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { View, Pressable, Animated, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { House, MessageCircle, LayoutGrid, CircleUser } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from '../components/Text';
@@ -18,26 +17,13 @@ const ICONS: Record<string, any> = {
 };
 
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const unread = useAppStore((s) => s.unread);
   const anyUnread = hasAnyUnread(unread);
 
   return (
-    <View
-      style={[
-        styles.wrap,
-        { borderTopColor: colors.border },
-        isAndroid && { backgroundColor: colors.surface, elevation: 8, borderTopWidth: 0 },
-      ]}
-    >
-      {!isAndroid && (
-        <BlurView
-          intensity={40}
-          tint={isDark ? 'dark' : 'light'}
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.navBg }]}
-        />
-      )}
+    <View style={[styles.wrap, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
       <View style={[styles.row, { paddingBottom: Math.max(insets.bottom, isAndroid ? 10 : 14) }]}>
         {state.routes.map((route, index) => {
           const focused = state.index === index;
@@ -117,7 +103,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderTopWidth: 1,
-    overflow: 'hidden',
+    shadowColor: 'rgba(0,0,0,0.14)',
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
   row: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 8 },
   tab: { flex: 1, alignItems: 'center', paddingTop: 4 },
