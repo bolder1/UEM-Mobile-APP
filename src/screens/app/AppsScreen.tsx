@@ -11,9 +11,9 @@ import { ProgressRing } from '../../components/ProgressRing';
 import { BottomSheet } from '../../components/BottomSheet';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
-import { ripple } from '../../theme/platform';
 import { APPS } from '../../data/mockData';
 import { AppInstallStatus, CatalogApp } from '../../types';
+import { Entrance, PressableScale, CountUp } from '../../components/Motion';
 
 // Every action button — Install / Update / Open / Request / Pending — shares
 // this footprint so the trailing edge of every row lines up, the way the
@@ -75,25 +75,28 @@ export function AppsScreen() {
         </View>
 
         {!q && updatesCount > 0 && (
-          <Card style={styles.updateBanner}>
-            <View style={[styles.updateIcon, { backgroundColor: colors.primaryTint }]}>
-              <RefreshCw size={17} color={colors.primary} strokeWidth={2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                Updates available
-              </AppText>
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, marginTop: 1 }}>
-                {updatesCount} {updatesCount === 1 ? 'app needs' : 'apps need'} updating
-              </AppText>
-            </View>
-            <Button
-              label="Update all"
-              size="sm"
-              onPress={() => APPS.forEach((a) => appSt[a.id] === 'update' && appAction(a.id))}
-              style={{ width: ACTION_BTN_WIDTH }}
-            />
-          </Card>
+          <Entrance>
+            <Card style={styles.updateBanner}>
+              <View style={[styles.updateIcon, { backgroundColor: colors.primaryTint }]}>
+                <RefreshCw size={17} color={colors.primary} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                  Updates available
+                </AppText>
+                <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, marginTop: 1 }}>
+                  <CountUp value={updatesCount}>{(d) => <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5 }}>{d}</AppText>}</CountUp>
+                  {' '}{updatesCount === 1 ? 'app needs' : 'apps need'} updating
+                </AppText>
+              </View>
+              <Button
+                label="Update all"
+                size="sm"
+                onPress={() => APPS.forEach((a) => appSt[a.id] === 'update' && appAction(a.id))}
+                style={{ width: ACTION_BTN_WIDTH }}
+              />
+            </Card>
+          </Entrance>
         )}
 
         {noResults ? (
@@ -106,22 +109,22 @@ export function AppsScreen() {
         ) : (
           <>
             {reqApps.length > 0 && (
-              <>
+              <Entrance delay={0}>
                 <SectionTitle badge="POLICY">Required</SectionTitle>
                 <AppSection apps={reqApps} appSt={appSt} progress={progress} appAction={appAction} onOpenDetail={setSelected} />
-              </>
+              </Entrance>
             )}
             {featApps.length > 0 && (
-              <>
+              <Entrance delay={80}>
                 <SectionTitle>Featured</SectionTitle>
                 <AppSection apps={featApps} appSt={appSt} progress={progress} appAction={appAction} onOpenDetail={setSelected} />
-              </>
+              </Entrance>
             )}
             {availApps.length > 0 && (
-              <>
+              <Entrance delay={160}>
                 <SectionTitle>Available on request</SectionTitle>
                 <AppSection apps={availApps} appSt={appSt} progress={progress} appAction={appAction} onOpenDetail={setSelected} last />
-              </>
+              </Entrance>
             )}
           </>
         )}
@@ -146,7 +149,7 @@ function SectionTitle({ children, badge }: { children: React.ReactNode; badge?: 
   const { colors } = useTheme();
   return (
     <View style={styles.sectionTitleRow}>
-      <AppText variant="displaySemibold" style={{ fontSize: 13.5 }}>
+      <AppText variant="bodyBold" color={colors.muted2} style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
         {children}
       </AppText>
       {badge && (
@@ -189,13 +192,10 @@ function AppSection({
             {/* Info area and action button are siblings, not nested Pressables —
                 nesting them would let a tap on "Install" bubble up and also
                 trigger the row's open-detail handler. */}
-            <Pressable
-              onPress={() => {
-                haptics.tap();
-                onOpenDetail(app);
-              }}
-              android_ripple={ripple(colors.surfaceActive) ?? undefined}
-              style={({ pressed }) => [styles.appRowInfo, pressed && { opacity: 0.6 }]}
+            <PressableScale
+              onPress={() => onOpenDetail(app)}
+              accessibilityLabel={`View ${app.name} details`}
+              style={styles.appRowInfo}
             >
               <View style={styles.iconWrap}>
                 <View style={[styles.tile, { backgroundColor: app.tile || colors.primary, borderColor: colors.borderStrong }]}>
@@ -223,7 +223,7 @@ function AppSection({
                   </AppText>
                 )}
               </View>
-            </Pressable>
+            </PressableScale>
             <AppActionButton status={status} name={app.name} onPress={() => appAction(app.id)} />
           </View>
         );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Server, EyeOff, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -7,6 +7,7 @@ import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
+import { Entrance, PressableScale, CountUp } from '../../components/Motion';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,85 +26,95 @@ export function AboutScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={[styles.heroIcon, { backgroundColor: colors.primaryTint }]}>
-          <Server size={26} color={colors.primary} strokeWidth={2} />
-        </View>
-        <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, lineHeight: 18, marginBottom: 18 }}>
-          Server connection, privacy and permissions for this managed device.
-        </AppText>
-
-        <Card style={styles.serverCard}>
-          <View style={styles.serverRow}>
-            <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-              Server status
-            </AppText>
-            <View style={[styles.activePill, { backgroundColor: colors.successTint }]}>
-              <View style={[styles.pillDot, { backgroundColor: colors.success }]} />
-              <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11.5 }}>
-                Active
-              </AppText>
-            </View>
+        <Entrance delay={0}>
+          <View style={[styles.heroIcon, { backgroundColor: colors.primaryTint }]}>
+            <Server size={26} color={colors.primary} strokeWidth={2} />
           </View>
-          <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
-          <FieldRow label="Base domain" value="www.endpointdefence.com" />
-          <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
-          <FieldRow label="Managed config" value="Loaded" />
-          <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, lineHeight: 17, marginTop: 10 }}>
-            Server connection is active and ready to use for device management services.
+          <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, lineHeight: 18, marginBottom: 18 }}>
+            Server connection, privacy and permissions for this managed device.
           </AppText>
-        </Card>
+        </Entrance>
 
-        <AppText variant="displaySemibold" style={styles.sectionLabel}>
-          Privacy
-        </AppText>
-        <Pressable onPress={() => navigation.navigate('Privacy')}>
-          <Card style={[styles.section, styles.privacyLink]}>
-            <View style={[styles.privacyIcon, { backgroundColor: colors.successTint }]}>
-              <EyeOff size={20} color={colors.success} strokeWidth={2} />
-            </View>
-            <View style={{ flex: 1 }}>
+        <Entrance delay={80}>
+          <Card style={styles.serverCard}>
+            <View style={styles.serverRow}>
               <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                What {ORG_NAME} can &amp; can&rsquo;t see
+                Server status
               </AppText>
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-                6 things visible · 9 stay private on your device
-              </AppText>
+              <View style={[styles.activePill, { backgroundColor: colors.successTint }]}>
+                <View style={[styles.pillDot, { backgroundColor: colors.success }]} />
+                <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11.5 }}>
+                  Active
+                </AppText>
+              </View>
             </View>
-            <ChevronRight size={17} color={colors.faint} strokeWidth={2.2} />
+            <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
+            <FieldRow label="Base domain" value="www.endpointdefence.com" />
+            <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
+            <FieldRow label="Managed config" value="Loaded" />
+            <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, lineHeight: 17, marginTop: 10 }}>
+              Server connection is active and ready to use for device management services.
+            </AppText>
           </Card>
-        </Pressable>
+        </Entrance>
 
-        <AppText variant="displaySemibold" style={styles.sectionLabel}>
-          App permissions
-        </AppText>
-        <Card style={{ marginBottom: 0 }} padded={false}>
-          <GrantRow label="Notifications" tag="Required" bordered />
-          <GrantRow label="VPN configuration" tag="Required" bordered />
-          <GrantRow label="Device management" tag="Required" bordered />
-          <View style={styles.grantRow}>
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodyMedium" style={{ fontSize: 13 }}>
-                Location
-              </AppText>
-              <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, marginTop: 1 }}>
-                Office geofence check-in only
-              </AppText>
-            </View>
-            <ToggleSwitch value={perms.loc} onChange={(v) => setPerm('loc', v)} onColor={colors.success} />
-          </View>
-        </Card>
-
-        <AppText variant="body" color={colors.muted2} style={styles.footer}>
-          Varies by ownership: personal (BYOD) devices share far less than company-owned.{'\n'}
-          UEM Companion · v3.0.0 (prototype) · DPDPA-aligned privacy
-        </AppText>
-
-        <View style={styles.poweredBy}>
-          <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 10, letterSpacing: 1 }}>
-            POWERED BY
+        <Entrance delay={160}>
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.sectionLabel}>
+            PRIVACY
           </AppText>
-          <Image source={require('../../../assets/logo-wordmark.png')} style={styles.wordmark} resizeMode="contain" />
-        </View>
+          <PressableScale onPress={() => navigation.navigate('Privacy')}>
+            <Card style={[styles.section, styles.privacyLink]}>
+              <View style={[styles.privacyIcon, { backgroundColor: colors.successTint }]}>
+                <EyeOff size={20} color={colors.success} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                  What {ORG_NAME} can &amp; can&rsquo;t see
+                </AppText>
+                <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+                  <CountUp value={6}>{(d) => d}</CountUp> things visible · <CountUp value={9}>{(d) => d}</CountUp> stay private on your device
+                </AppText>
+              </View>
+              <ChevronRight size={17} color={colors.faint} strokeWidth={2.2} />
+            </Card>
+          </PressableScale>
+        </Entrance>
+
+        <Entrance delay={240}>
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.sectionLabel}>
+            APP PERMISSIONS
+          </AppText>
+          <Card style={{ marginBottom: 0 }} padded={false}>
+            <GrantRow label="Notifications" tag="Required" bordered />
+            <GrantRow label="VPN configuration" tag="Required" bordered />
+            <GrantRow label="Device management" tag="Required" bordered />
+            <View style={styles.grantRow}>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodyMedium" style={{ fontSize: 13 }}>
+                  Location
+                </AppText>
+                <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, marginTop: 1 }}>
+                  Office geofence check-in only
+                </AppText>
+              </View>
+              <ToggleSwitch value={perms.loc} onChange={(v) => setPerm('loc', v)} onColor={colors.success} />
+            </View>
+          </Card>
+        </Entrance>
+
+        <Entrance delay={320}>
+          <AppText variant="body" color={colors.muted2} style={styles.footer}>
+            Varies by ownership: personal (BYOD) devices share far less than company-owned.{'\n'}
+            UEM Companion · v3.0.0 (prototype) · DPDPA-aligned privacy
+          </AppText>
+
+          <View style={styles.poweredBy}>
+            <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 10, letterSpacing: 1 }}>
+              POWERED BY
+            </AppText>
+            <Image source={require('../../../assets/logo-wordmark.png')} style={styles.wordmark} resizeMode="contain" />
+          </View>
+        </Entrance>
       </ScrollView>
     </SafeAreaView>
   );
@@ -148,7 +159,7 @@ const styles = StyleSheet.create({
   divider: { height: 1 },
   activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
-  sectionLabel: { fontSize: 13.5, marginBottom: 10, marginHorizontal: 2 },
+  sectionLabel: { fontSize: 10.5, letterSpacing: 1, marginBottom: 10, marginHorizontal: 2 },
   section: { marginBottom: 12 },
   privacyLink: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   privacyIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

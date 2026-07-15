@@ -3,15 +3,15 @@ import { Animated, Easing, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronUp, Eye, Lock, Power, Server } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronUp, Eye, Lock, Power, Server, Smartphone } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BottomSheet } from '../../components/BottomSheet';
-import { CountUp, Entrance, PressableScale, StateSwap, GlowOrb } from '../../components/Motion';
+import { CountUp, Entrance, Float3D, GlowOrb, PressableScale, StateSwap } from '../../components/Motion';
 import { EmbossedDisc, GlassChip, GlassPill } from '../../components/Glass';
-import { PulseRings, TypingDots } from '../../components/Animations';
+import { TypingDots } from '../../components/Animations';
 import { MONO } from '../../theme/typography';
 import { useReducedMotion } from '../../utils/useReducedMotion';
 import { useAppStore, ORG_NAME } from '../../state/store';
@@ -21,13 +21,12 @@ import { RootStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'Vpn'>;
 type VpnState = 'off' | 'connecting' | 'on';
 
-const AnimatedCircle: any = Animated.createAnimatedComponent(Circle);
 const AnimatedPath: any = Animated.createAnimatedComponent(Path);
 
-const DISC = 160; // hero disc
-const RING = 188; // success ring
-const ORBIT = 224; // connecting orbit ellipse
-const STAGE = 244; // hero stage square
+const NODE = 62; // device / gateway endpoint nodes
+const SEAL = 66; // central lock seal
+const H = 180; // hero stage height
+const CY = 84; // vertical center of the conduit + nodes
 const EASE_WORLD = Easing.bezier(0.4, 0, 0.2, 1);
 
 /** hex -> rgba at given alpha (for state-tinted washes and hairlines). */
@@ -369,9 +368,12 @@ export function VpnScreen({ navigation }: Props) {
 }
 
 /* ------------------------------------------------------------------ *
- *  Hero — one morphing composition that never unmounts.
- *  off: dim disc · connecting: orbiting dots + sonar · on: drawn
- *  success ring + bloom + breathing pulse + secure-horizon arc.
+ *  Hero — a floating 3D connectivity scene: this device wired to the
+ *  office gateway through a secure conduit, sealed by a lock at the
+ *  midpoint. Endpoints always visible; the connection comes alive:
+ *  off = dim inactive pipe · connecting = pipe lights + energy flows
+ *  device→gateway · on = lit conduit, sealed lock, breathing pulse.
+ *  The whole scene floats with a gentle 3D wobble.
  * ------------------------------------------------------------------ */
 function TunnelHero({ vpn, world }: { vpn: VpnState; world: Animated.Value }) {
   const { colors, isDark } = useTheme();
@@ -379,53 +381,45 @@ function TunnelHero({ vpn, world }: { vpn: VpnState; world: Animated.Value }) {
   const [w, setW] = useState(0);
 
   const lockPop = useRef(new Animated.Value(1)).current; // 0 -> spring 1 (overshoots)
-  const halo = useRef(new Animated.Value(0)).current; // one-shot bloom
-  const ringDraw = useRef(new Animated.Value(vpn === 'on' ? 1 : 0)).current; // strokeDashoffset draw
-  const arcDraw = useRef(new Animated.Value(vpn === 'on' ? 1 : 0)).current; // horizon arc draw
-  const orbit = useRef(new Animated.Value(0)).current; // connecting orbit rotation
-  const breath = useRef(new Animated.Value(0)).current; // 4s breathing loop when on
+  const halo = useRef(new Animated.Value(0)).current; // one-shot bloom on connect
+  const lit = useRef(new Animated.Value(vpn === 'on' ? 1 : 0)).current; // conduit draw device->gateway
+  const breath = useRef(new Animated.Value(0)).current; // breathing loop when on
   const prev = useRef(vpn);
 
-  // success beat + ring/arc draws on connecting -> on
+  const active = vpn === 'connecting' || vpn === 'on';
+
+  // conduit draw + success beat as the tunnel establishes / drops
   useEffect(() => {
     const was = prev.current;
     prev.current = vpn;
-    if (vpn !== 'on') return;
-    if (was === 'connecting') haptics.success();
-    if (reduced || was !== 'connecting') {
-      ringDraw.setValue(1);
-      arcDraw.setValue(1);
-      lockPop.setValue(1);
+    if (vpn === 'off') {
+      Animated.timing(lit, { toValue: 0, duration: reduced ? 0 : 300, easing: Easing.in(Easing.cubic), useNativeDriver: false }).start();
       return;
     }
-    lockPop.setValue(0);
-    Animated.spring(lockPop, { toValue: 1, damping: 9, stiffness: 260, mass: 0.7, useNativeDriver: true }).start();
-    halo.setValue(0);
-    Animated.timing(halo, { toValue: 1, duration: 620, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    ringDraw.setValue(0);
-    Animated.timing(ringDraw, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    arcDraw.setValue(0);
-    Animated.timing(arcDraw, { toValue: 1, duration: 900, delay: 180, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vpn]);
-
-  // orbit loop — connecting only, no-ops under reduced motion
-  useEffect(() => {
-    if (vpn !== 'connecting' || reduced) return;
-    orbit.setValue(0);
-    const loop = Animated.loop(Animated.timing(orbit, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }));
-    loop.start();
-    return () => loop.stop();
+    if (vpn === 'connecting') {
+      lit.setValue(0);
+      Animated.timing(lit, { toValue: 1, duration: reduced ? 0 : 750, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+      return;
+    }
+    // on
+    lit.setValue(1);
+    if (was === 'connecting' && !reduced) {
+      haptics.success();
+      lockPop.setValue(0);
+      Animated.spring(lockPop, { toValue: 1, damping: 9, stiffness: 260, mass: 0.7, useNativeDriver: true }).start();
+      halo.setValue(0);
+      Animated.timing(halo, { toValue: 1, duration: 620, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vpn, reduced]);
 
-  // 4s breathing pulse — on only, no-ops under reduced motion
+  // gentle breathing on the seal — on only, no-ops under reduced motion
   useEffect(() => {
     if (vpn !== 'on' || reduced) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(breath, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(breath, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]),
     );
     loop.start();
@@ -439,136 +433,198 @@ function TunnelHero({ vpn, world }: { vpn: VpnState; world: Animated.Value }) {
   const washConnecting = world.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 1, 0] });
   const washOn = world.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0, 1] });
   const glowOpacity = world.interpolate({ inputRange: [0, 1, 2], outputRange: [0, 0.7, 0.9] });
-  const discDim = world.interpolate({ inputRange: [0, 1, 2], outputRange: [1, 0.35, 0] });
 
-  const orbitSpin = orbit.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const breathScale = breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
-  const breathOp = breath.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] });
-  const lockScale = lockPop.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] });
-  const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] });
+  const breathY = breath.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
+  const lockScale = lockPop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
+  const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.4] });
   const haloOp = halo.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0, 0.5, 0] });
 
-  const rr = RING / 2 - 3;
-  const RC = 2 * Math.PI * rr;
-  const arcLen = Math.max(w, 1) * 1.2;
+  const x1 = 40; // device node center x
+  const x2 = w - 40; // gateway node center x
+  const pipeLen = Math.max(x2 - x1, 1);
   const lockColor = vpn === 'on' ? colors.success : vpn === 'connecting' ? colors.primary : colors.muted;
+  const endIcon = colors.text3;
+  const pipeD = `M ${x1} ${CY} L ${x2} ${CY}`;
 
   return (
     <View style={styles.hero} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-      {/* secure horizon — thin gradient arc drawing across the width above the disc */}
-      {w > 0 && (
-        <Animated.View pointerEvents="none" style={[styles.horizon, { opacity: washOn }]}>
-          <Svg width={w} height={64} viewBox={`0 0 ${w} 64`}>
-            <Defs>
-              <SvgLinearGradient id="vpnHorizon" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={colors.success} stopOpacity="0" />
-                <Stop offset="0.5" stopColor={colors.successStrong} stopOpacity="0.9" />
-                <Stop offset="1" stopColor={colors.success} stopOpacity="0" />
-              </SvgLinearGradient>
-            </Defs>
-            <AnimatedPath
-              d={`M 4 60 Q ${w / 2} 2 ${w - 4} 60`}
-              stroke="url(#vpnHorizon)"
-              strokeWidth={2}
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={`${arcLen} ${arcLen}`}
-              strokeDashoffset={arcDraw.interpolate({ inputRange: [0, 1], outputRange: [arcLen, 0] })}
-            />
-          </Svg>
+      {/* ambient glow behind — tinted by state, none while off */}
+      {w > 0 && vpn !== 'off' && (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: glowOpacity, alignItems: 'center', justifyContent: 'center' }]}>
+          <GlowOrb
+            size={260}
+            colors={vpn === 'on' ? [colors.success, colors.successStrong] : [colors.primary, colors.primaryStrong]}
+            opacity={isDark ? 0.3 : 0.18}
+            style={{ top: (H - 260) / 2, left: (w - 260) / 2 }}
+          />
         </Animated.View>
       )}
 
-      <View style={styles.stage}>
-        {/* ambient glow behind the disc — none while off */}
-        {vpn !== 'off' && (
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: glowOpacity }]}>
-            <GlowOrb
-              size={300}
-              colors={vpn === 'on' ? [colors.success, colors.successStrong] : [colors.primary, colors.primaryStrong]}
-              opacity={isDark ? 0.32 : 0.2}
-              style={{ top: (STAGE - 300) / 2, left: (STAGE - 300) / 2 }}
-            />
-          </Animated.View>
-        )}
+      {w > 0 && (
+        <Float3D rotate={4} float={5} duration={4200} style={{ width: w, height: H }}>
+          {/* base conduit track — the pipe is always there, just inactive when off */}
+          <Svg width={w} height={H} style={StyleSheet.absoluteFill}>
+            <Defs>
+              <SvgLinearGradient id="pipePri" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={colors.primary} stopOpacity="0.45" />
+                <Stop offset="1" stopColor={colors.primaryStrong} stopOpacity="1" />
+              </SvgLinearGradient>
+              <SvgLinearGradient id="pipeOk" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={colors.success} stopOpacity="0.5" />
+                <Stop offset="1" stopColor={colors.successStrong} stopOpacity="1" />
+              </SvgLinearGradient>
+            </Defs>
+            <Path d={pipeD} stroke={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'} strokeWidth={8} strokeLinecap="round" fill="none" />
+          </Svg>
 
-        {/* sonar rings while establishing */}
-        {vpn === 'connecting' && <PulseRings size={DISC + 6} color={colors.primary} count={2} duration={2200} />}
-
-        {/* state-tinted hairline at the disc edge — moves with the same clock as the wash */}
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.hairRing, { borderColor: alpha(colors.primary, 0.45), opacity: washConnecting }]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.hairRing, { borderColor: alpha(colors.success, 0.5), opacity: washOn }]}
-        />
-
-        {/* one-time green bloom on connect */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.halo,
-            {
-              borderColor: alpha(colors.success, 0.55),
-              backgroundColor: alpha(colors.success, 0.12),
-              opacity: haloOp,
-              transform: [{ scale: haloScale }],
-            },
-          ]}
-        />
-
-        {/* success ring — draws shut via strokeDashoffset, then breathes on a 4s loop */}
-        <Animated.View pointerEvents="none" style={[styles.ringWrap, { opacity: washOn }]}>
-          <Animated.View style={{ flex: 1, opacity: breathOp, transform: [{ scale: breathScale }] }}>
-            <Svg width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}>
-              <AnimatedCircle
-                cx={RING / 2}
-                cy={RING / 2}
-                r={rr}
-                stroke={colors.success}
-                strokeWidth={2.5}
+          {/* lit conduit — two colour worlds cross-fading on the world clock,
+              both drawn device→gateway via strokeDashoffset as it connects */}
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: washConnecting }]}>
+            <Svg width={w} height={H}>
+              <AnimatedPath
+                d={pipeD}
+                stroke="url(#pipePri)"
+                strokeWidth={8}
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray={`${RC} ${RC}`}
-                strokeDashoffset={ringDraw.interpolate({ inputRange: [0, 1], outputRange: [RC, 0] })}
-                rotation={-90}
-                originX={RING / 2}
-                originY={RING / 2}
+                strokeDasharray={`${pipeLen} ${pipeLen}`}
+                strokeDashoffset={lit.interpolate({ inputRange: [0, 1], outputRange: [pipeLen, 0] })}
               />
             </Svg>
           </Animated.View>
-        </Animated.View>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: washOn }]}>
+            <Svg width={w} height={H}>
+              <AnimatedPath
+                d={pipeD}
+                stroke="url(#pipeOk)"
+                strokeWidth={8}
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={`${pipeLen} ${pipeLen}`}
+                strokeDashoffset={lit.interpolate({ inputRange: [0, 1], outputRange: [pipeLen, 0] })}
+              />
+            </Svg>
+          </Animated.View>
 
-        {/* the disc itself — never unmounts, only its weather changes */}
-        <EmbossedDisc size={DISC}>
+          {/* energy travelling device → gateway while the tunnel is live */}
+          <EnergyDots fromX={x1} toX={x2} y={CY} color={vpn === 'on' ? colors.successStrong : colors.primary} active={active} />
+
+          {/* endpoints — this device (left) and the office gateway (right) */}
+          <View style={{ position: 'absolute', left: x1 - NODE / 2, top: CY - NODE / 2 }}>
+            <Node3D tilt="-15deg">
+              <Smartphone size={24} color={endIcon} strokeWidth={1.8} />
+            </Node3D>
+          </View>
+          <AppText style={[styles.nodeCap, { left: x1 - NODE / 2, width: NODE, color: colors.muted2 }]}>YOU</AppText>
+
+          <View style={{ position: 'absolute', left: x2 - NODE / 2, top: CY - NODE / 2 }}>
+            <Node3D tilt="15deg">
+              <Server size={23} color={endIcon} strokeWidth={1.8} />
+            </Node3D>
+          </View>
+          <AppText style={[styles.nodeCap, { left: x2 - NODE / 2, width: NODE, color: colors.muted2 }]}>OFFICE</AppText>
+
+          {/* the seal — floats forward on the conduit midpoint, sealed on connect */}
           <Animated.View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(90,100,110,0.12)', opacity: discDim },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: lockScale }] }}>
-            <StateSwap stateKey={vpn}>
-              <Lock size={54} color={lockColor} strokeWidth={1.7} />
-            </StateSwap>
+            style={{ position: 'absolute', left: w / 2 - SEAL / 2, top: CY - SEAL / 2, transform: [{ scale: lockScale }, { translateY: breathY }] }}
+          >
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.lockHalo, { borderColor: alpha(colors.success, 0.55), backgroundColor: alpha(colors.success, 0.12), opacity: haloOp, transform: [{ scale: haloScale }] }]}
+            />
+            <EmbossedDisc size={SEAL} style={styles.sealShadow}>
+              <StateSwap stateKey={vpn}>
+                <Lock size={26} color={lockColor} strokeWidth={2} />
+              </StateSwap>
+            </EmbossedDisc>
           </Animated.View>
-        </EmbossedDisc>
-
-        {/* two primary dots orbiting on a tilted ellipse while establishing */}
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.orbit, { opacity: washConnecting, transform: [{ rotate: '-16deg' }, { scaleY: 0.42 }] }]}
-        >
-          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orbitSpin }] }]}>
-            <View style={[styles.orbitDot, { backgroundColor: colors.primary, top: ORBIT / 2 - 4, left: -3 }]} />
-            <View style={[styles.orbitDotSm, { backgroundColor: colors.primaryStrong, top: ORBIT / 2 - 3, right: -2 }]} />
-          </Animated.View>
-        </Animated.View>
-      </View>
+        </Float3D>
+      )}
     </View>
+  );
+}
+
+/** A 3D-tilted embossed endpoint node (device / gateway). */
+function Node3D({ tilt, children }: { tilt: string; children: React.ReactNode }) {
+  const { colors, isDark } = useTheme();
+  return (
+    <View
+      style={[
+        styles.node,
+        {
+          backgroundColor: isDark ? '#1B222B' : '#FFFFFF',
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          shadowColor: isDark ? '#000' : 'rgba(20,24,30,0.5)',
+          transform: [{ perspective: 700 }, { rotateY: tilt }],
+        },
+      ]}
+    >
+      <LinearGradient
+        pointerEvents="none"
+        colors={[isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.9)', 'transparent'] as const}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        pointerEvents="none"
+        colors={['transparent', isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)'] as const}
+        start={{ x: 0.5, y: 0.55 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {children}
+    </View>
+  );
+}
+
+/** Small glowing pulses travelling along the conduit while the tunnel is live. */
+function EnergyDots({ fromX, toX, y, color, active }: { fromX: number; toX: number; y: number; color: string; active: boolean }) {
+  const reduced = useReducedMotion();
+  const COUNT = 3;
+  const dots = useRef(Array.from({ length: COUNT }, () => new Animated.Value(0))).current;
+  useEffect(() => {
+    if (!active || reduced) {
+      dots.forEach((v) => v.setValue(0));
+      return;
+    }
+    const loops = dots.map((v, i) => {
+      v.setValue(0);
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay((i * 1500) / COUNT),
+          Animated.timing(v, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }),
+        ]),
+      );
+    });
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, reduced, fromX, toX]);
+  if (!active) return null;
+  return (
+    <>
+      {dots.map((v, i) => (
+        <Animated.View
+          key={i}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: y - 4,
+            left: 0,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: color,
+            shadowColor: color,
+            shadowOpacity: 0.9,
+            shadowRadius: 6,
+            opacity: v.interpolate({ inputRange: [0, 0.12, 0.85, 1], outputRange: [0, 1, 1, 0] }),
+            transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [fromX - 4, toX - 4] }) }],
+          }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -609,31 +665,23 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 16 },
 
-  hero: { alignItems: 'center', paddingTop: 46 },
-  horizon: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
-  stage: { width: STAGE, height: STAGE, alignItems: 'center', justifyContent: 'center' },
-  hairRing: {
-    position: 'absolute',
-    top: (STAGE - (DISC + 12)) / 2,
-    left: (STAGE - (DISC + 12)) / 2,
-    width: DISC + 12,
-    height: DISC + 12,
-    borderRadius: (DISC + 12) / 2,
+  hero: { alignItems: 'center', paddingTop: 30 },
+  node: {
+    width: NODE,
+    height: NODE,
+    borderRadius: 17,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
-  halo: {
-    position: 'absolute',
-    top: (STAGE - 200) / 2,
-    left: (STAGE - 200) / 2,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 2,
-  },
-  ringWrap: { position: 'absolute', top: (STAGE - RING) / 2, left: (STAGE - RING) / 2, width: RING, height: RING },
-  orbit: { position: 'absolute', top: (STAGE - ORBIT) / 2, left: (STAGE - ORBIT) / 2, width: ORBIT, height: ORBIT },
-  orbitDot: { position: 'absolute', width: 9, height: 9, borderRadius: 5 },
-  orbitDotSm: { position: 'absolute', width: 7, height: 7, borderRadius: 4 },
+  nodeCap: { position: 'absolute', top: CY + NODE / 2 + 9, fontFamily: MONO, fontSize: 8.5, letterSpacing: 1.2, textAlign: 'center' },
+  lockHalo: { position: 'absolute', top: (SEAL - 128) / 2, left: (SEAL - 128) / 2, width: 128, height: 128, borderRadius: 64, borderWidth: 2 },
+  sealShadow: { shadowColor: 'rgba(0,0,0,0.5)', shadowOpacity: 1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
 
   pillWrap: { alignItems: 'center', marginTop: 14 },
   pillDot: { width: 7, height: 7, borderRadius: 4 },

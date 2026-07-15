@@ -11,6 +11,7 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { SearchField } from '../../components/SearchField';
 import { FilterChips } from '../../components/FilterChips';
 import { EmptyState } from '../../components/EmptyState';
+import { Entrance } from '../../components/Motion';
 import { useAppStore } from '../../state/store';
 import { ActivityKind } from '../../types';
 import { ColorScheme } from '../../theme/colors';
@@ -71,50 +72,55 @@ export function ActivityScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginBottom: 10, marginHorizontal: 2 }}>
-          Every action taken on this device, by you or IT. Nothing here is hidden from you.
-        </AppText>
+        <Entrance delay={0}>
+          <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginBottom: 10, marginHorizontal: 2 }}>
+            Every action taken on this device, by you or IT. Nothing here is hidden from you.
+          </AppText>
+        </Entrance>
 
         {rows.length === 0 ? (
-          <EmptyState
-            icon={<History size={22} color={colors.muted} strokeWidth={2} />}
-            title={q ? 'No matching activity' : 'Nothing logged yet'}
-            body={q ? `Nothing matches “${q}”.` : 'Actions you or IT take will appear here.'}
-          />
+          <Entrance delay={80}>
+            <EmptyState
+              icon={<History size={22} color={colors.muted} strokeWidth={2} />}
+              title={q ? 'No matching activity' : 'Nothing logged yet'}
+              body={q ? `Nothing matches “${q}”.` : 'Actions you or IT take will appear here.'}
+            />
+          </Entrance>
         ) : (
           <Card style={{ overflow: 'hidden' }} padded={false}>
             {rows.map((a, i) => {
               const ks = kindStyle(a.kind, colors);
               return (
-                <View
-                  key={a.id}
-                  style={[styles.row, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
-                >
-                  <View style={[styles.icon, { backgroundColor: ks.tint }]}>
-                    <ks.Icon size={16} color={ks.color} strokeWidth={2} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                      {a.title}
-                    </AppText>
-                    <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
-                      {a.detail}
-                    </AppText>
-                    <View style={styles.meta}>
-                      <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 11 }}>
-                        {a.time}
+                <Entrance key={a.id} delay={Math.min(i, 7) * 55}>
+                  <View
+                    style={[styles.row, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
+                  >
+                    <View style={[styles.icon, { backgroundColor: ks.tint }]}>
+                      <ks.Icon size={16} color={ks.color} strokeWidth={2} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                        {a.title}
                       </AppText>
-                      <View style={[styles.metaDot, { backgroundColor: colors.faint }]} />
-                      <AppText
-                        variant="bodySemibold"
-                        color={a.actor.startsWith('IT') ? colors.info : colors.muted2}
-                        style={{ fontSize: 11 }}
-                      >
-                        {a.actor}
+                      <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
+                        {a.detail}
                       </AppText>
+                      <View style={styles.meta}>
+                        <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 11 }}>
+                          {a.time}
+                        </AppText>
+                        <View style={[styles.metaDot, { backgroundColor: colors.faint }]} />
+                        <AppText
+                          variant="bodySemibold"
+                          color={a.actor.startsWith('IT') ? colors.info : colors.muted2}
+                          style={{ fontSize: 11 }}
+                        >
+                          {a.actor}
+                        </AppText>
+                      </View>
                     </View>
                   </View>
-                </View>
+                </Entrance>
               );
             })}
           </Card>

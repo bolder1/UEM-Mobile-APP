@@ -4,7 +4,6 @@ import {
   StyleSheet,
   FlatList,
   TextInput,
-  Pressable,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Avatar } from '../../components/Avatar';
 import { TypingDots } from '../../components/Animations';
+import { Entrance, PressableScale } from '../../components/Motion';
 import { useAppStore } from '../../state/store';
 import { haptics } from '../../utils/haptics';
 import { RootStackParamList } from '../../navigation/types';
@@ -40,24 +40,26 @@ export function ChatThreadScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
-          <ChevronLeft size={19} color={colors.text2} strokeWidth={2.4} />
-        </Pressable>
-        <Avatar initials={chat.init} color={chat.color} size={38} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="bodySemibold" style={{ fontSize: 14.5 }}>
-            {chat.name}
-          </AppText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
-            <AppText variant="body" color={colors.success} style={{ fontSize: 11 }}>
-              {chat.sub}
+      <Entrance>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <PressableScale onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8} accessibilityLabel="Go back">
+            <ChevronLeft size={19} color={colors.text2} strokeWidth={2.4} />
+          </PressableScale>
+          <Avatar initials={chat.init} color={chat.color} size={38} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <AppText variant="bodySemibold" style={{ fontSize: 14.5 }}>
+              {chat.name}
             </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
+              <AppText variant="body" color={colors.success} style={{ fontSize: 11 }}>
+                {chat.sub}
+              </AppText>
+            </View>
           </View>
+          <Lock size={18} color={colors.muted2} strokeWidth={2} />
         </View>
-        <Lock size={18} color={colors.muted2} strokeWidth={2} />
-      </View>
+      </Entrance>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
         {messages.length === 0 && !typing ? (
@@ -77,7 +79,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
             keyExtractor={(_, i) => String(i)}
             contentContainerStyle={{ paddingVertical: 16 }}
             renderItem={({ item }) => (
-              <View style={[styles.bubbleRow, { justifyContent: item.mine ? 'flex-end' : 'flex-start' }]}>
+              <Entrance from={8} style={[styles.bubbleRow, { justifyContent: item.mine ? 'flex-end' : 'flex-start' }]}>
                 <View
                   style={[
                     styles.bubble,
@@ -103,7 +105,7 @@ export function ChatThreadScreen({ route, navigation }: Props) {
                     {item.t}{item.mine ? ' ✓✓' : ''}
                   </AppText>
                 </View>
-              </View>
+              </Entrance>
             )}
             ListFooterComponent={
               typing ? (
@@ -117,29 +119,30 @@ export function ChatThreadScreen({ route, navigation }: Props) {
           />
         )}
 
-        <View style={styles.inputRow}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Message"
-            placeholderTextColor={colors.muted2}
-            style={[styles.input, { borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text }]}
-            onSubmitEditing={sendMsg}
-            returnKeyType="send"
-          />
-          <Pressable
-            onPress={() => {
-              if (draft.trim()) haptics.tap();
-              sendMsg();
-            }}
-            style={({ pressed }) => [
-              styles.sendBtn,
-              { backgroundColor: draft.trim() ? colors.primary : colors.disabled, transform: [{ scale: pressed ? 0.92 : 1 }] },
-            ]}
-          >
-            <Send size={19} color="#FFFFFF" strokeWidth={2.2} />
-          </Pressable>
-        </View>
+        <Entrance delay={80}>
+          <View style={styles.inputRow}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Message"
+              placeholderTextColor={colors.muted2}
+              style={[styles.input, { borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text }]}
+              onSubmitEditing={sendMsg}
+              returnKeyType="send"
+            />
+            <PressableScale
+              haptic={false}
+              onPress={() => {
+                if (draft.trim()) haptics.tap();
+                sendMsg();
+              }}
+              accessibilityLabel="Send message"
+              style={[styles.sendBtn, { backgroundColor: draft.trim() ? colors.primary : colors.disabled }]}
+            >
+              <Send size={19} color="#FFFFFF" strokeWidth={2.2} />
+            </PressableScale>
+          </View>
+        </Entrance>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

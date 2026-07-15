@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, BadgeCheck, Megaphone, LayoutGrid, Cast, ShieldAlert, CheckCheck } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { Entrance, PressableScale } from '../../components/Motion';
 import { useAppStore } from '../../state/store';
-import { haptics } from '../../utils/haptics';
 import { NotificationCategory, NotificationItem } from '../../types';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -49,19 +49,17 @@ export function NotificationsScreen({ navigation }: Props) {
       <View style={styles.headRow}>
         <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} />
         {unreadCount > 0 && (
-          <Pressable
-            onPress={() => {
-              haptics.tap();
-              markAllNotifsRead();
-            }}
+          <PressableScale
+            onPress={() => markAllNotifsRead()}
             style={styles.markAllBtn}
             hitSlop={8}
+            accessibilityLabel="Mark all notifications read"
           >
             <CheckCheck size={14} color={colors.primary} strokeWidth={2.3} />
             <AppText variant="bodySemibold" color={colors.primary} style={{ fontSize: 12.5 }}>
               Mark all read
             </AppText>
-          </Pressable>
+          </PressableScale>
         )}
       </View>
 
@@ -71,48 +69,47 @@ export function NotificationsScreen({ navigation }: Props) {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const { bg, c, Icon } = categoryStyle(colors, item.category);
           return (
-            <Pressable
-              onPress={() => {
-                haptics.tap();
-                goToTarget(item);
-              }}
-              style={({ pressed }) => [
-                styles.row,
-                {
-                  backgroundColor: item.read ? colors.surface : colors.surfaceHover,
-                  borderColor: colors.border,
-                },
-                pressed && { backgroundColor: colors.surfaceActive },
-              ]}
-            >
-              {!item.read && <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />}
-              <View style={[styles.icon, { backgroundColor: bg }]}>
-                <Icon size={18} color={c} strokeWidth={2} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                  {item.title}
-                </AppText>
-                <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2, lineHeight: 17 }}>
-                  {item.body}
-                </AppText>
-                <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, marginTop: 5 }}>
-                  {item.time}
-                </AppText>
-              </View>
-            </Pressable>
+            <Entrance delay={Math.min(index, 7) * 55}>
+              <PressableScale
+                onPress={() => goToTarget(item)}
+                accessibilityLabel={item.title}
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: item.read ? colors.surface : colors.surfaceHover,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {!item.read && <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />}
+                <View style={[styles.icon, { backgroundColor: bg }]}>
+                  <Icon size={18} color={c} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                    {item.title}
+                  </AppText>
+                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2, lineHeight: 17 }}>
+                    {item.body}
+                  </AppText>
+                  <AppText variant="body" color={colors.muted2} style={{ fontSize: 11, marginTop: 5 }}>
+                    {item.time}
+                  </AppText>
+                </View>
+              </PressableScale>
+            </Entrance>
           );
         }}
         ListEmptyComponent={
-          <View style={styles.empty}>
+          <Entrance style={styles.empty}>
             <Bell size={28} color={colors.faint} strokeWidth={1.6} />
             <AppText variant="body" color={colors.muted2} style={{ fontSize: 12.5, marginTop: 10 }}>
               You&rsquo;re all caught up.
             </AppText>
-          </View>
+          </Entrance>
         }
       />
     </SafeAreaView>

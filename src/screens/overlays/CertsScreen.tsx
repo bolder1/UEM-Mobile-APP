@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BadgeCheck, X, ShieldCheck, UserCog, Download, Check } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -10,9 +10,8 @@ import { IconButton } from '../../components/IconButton';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Spinner } from '../../components/Animations';
+import { Entrance, PressableScale, CountUp } from '../../components/Motion';
 import { useAppStore, ORG_NAME } from '../../state/store';
-import { haptics } from '../../utils/haptics';
-import { ripple } from '../../theme/platform';
 import { certDefs } from '../../data/mockData';
 import { CertDef } from '../../types';
 import { RootStackParamList } from '../../navigation/types';
@@ -46,31 +45,47 @@ export function CertsScreen({ navigation }: Props) {
       </AppText>
 
       {pendingCount > 0 && (
-        <View style={[styles.bannerRow, { backgroundColor: colors.amberTint }]}>
-          <ShieldCheck size={16} color={colors.amberStrong} strokeWidth={2.2} />
-          <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 12, flex: 1 }}>
-            {pendingCount === 1 ? '1 certificate needs' : `${pendingCount} certificates need`} your action to keep
-            this device compliant.
-          </AppText>
-        </View>
+        <Entrance delay={0}>
+          <View style={[styles.bannerRow, { backgroundColor: colors.amberTint }]}>
+            <ShieldCheck size={16} color={colors.amberStrong} strokeWidth={2.2} />
+            <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 12, flex: 1 }}>
+              {pendingCount === 1 ? (
+                '1 certificate needs your action to keep this device compliant.'
+              ) : (
+                <>
+                  <CountUp value={pendingCount}>
+                    {(d) => (
+                      <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 12 }}>
+                        {d}
+                      </AppText>
+                    )}
+                  </CountUp>
+                  {' certificates need your action to keep this device compliant.'}
+                </>
+              )}
+            </AppText>
+          </View>
+        </Entrance>
       )}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {waiting.length > 0 && (
-          <>
+          <Entrance delay={80}>
             <SectionTitle badge="ACTION">Waiting for you</SectionTitle>
             <CertSection certs={waiting} statuses={certs} onInstall={installCert} onOpenDetail={setSelected} />
-          </>
+          </Entrance>
         )}
         {installed.length > 0 && (
-          <>
+          <Entrance delay={160}>
             <SectionTitle>Installed</SectionTitle>
             <CertSection certs={installed} statuses={certs} onInstall={installCert} onOpenDetail={setSelected} last />
-          </>
+          </Entrance>
         )}
-        <AppText variant="body" color={colors.muted2} style={styles.footNote}>
-          Installing a certificate is logged and visible to your admin.
-        </AppText>
+        <Entrance delay={220}>
+          <AppText variant="body" color={colors.muted2} style={styles.footNote}>
+            Installing a certificate is logged and visible to your admin.
+          </AppText>
+        </Entrance>
       </ScrollView>
 
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
@@ -91,7 +106,11 @@ function SectionTitle({ children, badge }: { children: React.ReactNode; badge?: 
   const { colors } = useTheme();
   return (
     <View style={styles.sectionTitleRow}>
-      <AppText variant="displaySemibold" style={{ fontSize: 13.5 }}>
+      <AppText
+        variant="bodyBold"
+        color={colors.muted2}
+        style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}
+      >
         {children}
       </AppText>
       {badge && (
@@ -131,41 +150,41 @@ function CertSection({
         const stC = installed ? colors.success : installing ? colors.primaryStrong : colors.amberStrong;
         const stLabel = installed ? 'Installed' : installing ? 'Installing…' : 'Waiting for you';
         return (
-          <View
-            key={c.id}
-            style={[styles.row, i < certs.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
-          >
-            {/* Info area and action button are siblings, not nested Pressables —
-                nesting them would let a tap on "Install" bubble up and also
-                trigger the row's open-detail handler. */}
-            <Pressable
-              onPress={() => {
-                haptics.tap();
-                onOpenDetail(c);
-              }}
-              android_ripple={ripple(colors.surfaceActive) ?? undefined}
-              style={({ pressed }) => [styles.rowInfo, pressed && { opacity: 0.6 }]}
+          <Entrance key={c.id} delay={Math.min(i, 7) * 55}>
+            <View
+              style={[styles.row, i < certs.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
             >
-              <View style={[styles.icon, { backgroundColor: tileBg }]}>
-                <BadgeCheck size={19} color={tileC} strokeWidth={2} />
-              </View>
+              {/* Info area and action button are siblings, not nested Pressables —
+                  nesting them would let a tap on "Install" bubble up and also
+                  trigger the row's open-detail handler. */}
               <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
-                  {c.name}
-                </AppText>
-                <AppText variant="body" color={colors.muted2} numberOfLines={1} style={{ fontSize: 11.5, marginTop: 2 }}>
-                  {c.detail} · Pushed {c.pushedDate}
-                </AppText>
-                <View style={styles.statusRow}>
-                  <View style={[styles.statusDot, { backgroundColor: stDot }]} />
-                  <AppText variant="bodySemibold" color={stC} style={{ fontSize: 11 }}>
-                    {stLabel}
-                  </AppText>
-                </View>
+                <PressableScale
+                  onPress={() => onOpenDetail(c)}
+                  style={styles.rowInfo}
+                  accessibilityLabel={`${c.name} details`}
+                >
+                  <View style={[styles.icon, { backgroundColor: tileBg }]}>
+                    <BadgeCheck size={19} color={tileC} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
+                      {c.name}
+                    </AppText>
+                    <AppText variant="body" color={colors.muted2} numberOfLines={1} style={{ fontSize: 11.5, marginTop: 2 }}>
+                      {c.detail} · Pushed {c.pushedDate}
+                    </AppText>
+                    <View style={styles.statusRow}>
+                      <View style={[styles.statusDot, { backgroundColor: stDot }]} />
+                      <AppText variant="bodySemibold" color={stC} style={{ fontSize: 11 }}>
+                        {stLabel}
+                      </AppText>
+                    </View>
+                  </View>
+                </PressableScale>
               </View>
-            </Pressable>
-            <CertActionButton status={status} name={c.name} onInstall={() => onInstall(c.id)} />
-          </View>
+              <CertActionButton status={status} name={c.name} onInstall={() => onInstall(c.id)} />
+            </View>
+          </Entrance>
         );
       })}
     </Card>
@@ -229,9 +248,13 @@ function CertDetail({
             X.509 certificate
           </AppText>
         </View>
-        <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.surfaceSunken }]}>
+        <PressableScale
+          onPress={onClose}
+          accessibilityLabel="Close"
+          style={[styles.closeBtn, { backgroundColor: colors.surfaceSunken }]}
+        >
           <X size={14} color={colors.text3} strokeWidth={2.4} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={[styles.statsRow, { borderTopColor: colors.hairline, borderBottomColor: colors.hairline }]}>

@@ -23,6 +23,7 @@ import { SearchField } from '../../components/SearchField';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
+import { Entrance, PressableScale, CountUp } from '../../components/Motion';
 import { FILE_NODES, TYPE_LABELS, DRIVE_LABELS } from '../../data/mockData';
 import { FileNode, DriveId, FileType } from '../../types';
 import { ripple } from '../../theme/platform';
@@ -136,87 +137,88 @@ export function FilesScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn}>
-            <ChevronLeft size={22} color={colors.text2} strokeWidth={2.2} />
-          </Pressable>
-          <AppText variant="display" style={{ fontSize: 22 }}>
-            Files
-          </AppText>
+      <Entrance delay={0}>
+        <View style={styles.header}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <PressableScale onPress={() => navigation.goBack()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn}>
+              <ChevronLeft size={22} color={colors.text2} strokeWidth={2.2} />
+            </PressableScale>
+            <AppText variant="display" style={{ fontSize: 22 }}>
+              Files
+            </AppText>
+          </View>
+          <PressableScale
+            onPress={() => setFilterOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Filter and sort"
+            style={[styles.filterBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <SlidersHorizontal size={17} color={colors.text2} strokeWidth={2.1} />
+            {filterCount > 0 && <View style={[styles.filterDot, { backgroundColor: colors.primary, borderColor: colors.bg }]} />}
+          </PressableScale>
         </View>
-        <Pressable
-          onPress={() => {
-            haptics.tap();
-            setFilterOpen(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Filter and sort"
-          android_ripple={ripple(colors.surfaceActive, true) ?? undefined}
-          style={[styles.filterBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
-          <SlidersHorizontal size={17} color={colors.text2} strokeWidth={2.1} />
-          {filterCount > 0 && <View style={[styles.filterDot, { backgroundColor: colors.primary, borderColor: colors.bg }]} />}
-        </Pressable>
-      </View>
+      </Entrance>
 
-      <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+      <Entrance delay={80} style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
         <SearchField value={q} onChangeText={setQ} placeholder="Search work files" />
-      </View>
+      </Entrance>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
-        <Card style={styles.storageCard}>
-          <View style={styles.storageTop}>
-            <View style={styles.storageLabel}>
-              <FileText size={14} color={colors.text3} strokeWidth={2} />
-              <AppText variant="bodySemibold" color={colors.text2} style={{ fontSize: 12.5 }}>
-                Work storage
+        <Entrance delay={160}>
+          <Card style={styles.storageCard}>
+            <View style={styles.storageTop}>
+              <View style={styles.storageLabel}>
+                <FileText size={14} color={colors.text3} strokeWidth={2} />
+                <AppText variant="bodyBold" color={colors.muted2} style={styles.microLabel}>
+                  Work storage
+                </AppText>
+              </View>
+              <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5 }}>
+                12.4 GB of 20 GB
               </AppText>
             </View>
-            <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5 }}>
-              12.4 GB of 20 GB
-            </AppText>
-          </View>
-          <View style={[styles.barTrack, { backgroundColor: colors.surfaceSunken }]}>
-            <View style={[styles.barFill, { backgroundColor: colors.primary, width: '62%' }]} />
-          </View>
-        </Card>
+            <View style={[styles.barTrack, { backgroundColor: colors.surfaceSunken }]}>
+              <View style={[styles.barFill, { backgroundColor: colors.primary, width: '62%' }]} />
+            </View>
+          </Card>
+        </Entrance>
 
-        <Breadcrumbs drive={drive} trail={trail} onNavigate={goToFolder} onSwitchDrive={() => setFilterOpen(true)} />
+        <Entrance delay={240}>
+          <Breadcrumbs drive={drive} trail={trail} onNavigate={goToFolder} onSwitchDrive={() => setFilterOpen(true)} />
+        </Entrance>
 
         {folders.length > 0 && (
           <View style={styles.folderGrid}>
-            {folders.map((f) => (
-              <Pressable
-                key={f.id}
-                onPress={() => {
-                  haptics.tap();
-                  openFolder(f.id);
-                }}
-                android_ripple={ripple(colors.surfaceActive) ?? undefined}
-                style={({ pressed }) => [
-                  styles.folderTile,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  pressed && { backgroundColor: colors.surfaceActive },
-                ]}
-              >
-                <View style={[styles.folderIcon, { backgroundColor: colors.surfaceSunken }]}>
-                  <Folder size={20} color={colors.text3} strokeWidth={2} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13 }}>
-                    {f.name}
-                  </AppText>
-                  <AppText variant="body" color={colors.muted2} style={{ fontSize: 11 }}>
-                    {f.itemCount ?? 0} items
-                  </AppText>
-                </View>
-                <ChevronRight size={16} color={colors.faint} strokeWidth={2.2} />
-              </Pressable>
+            {folders.map((f, index) => (
+              <Entrance key={f.id} delay={300 + Math.min(index, 7) * 55}>
+                <PressableScale
+                  onPress={() => openFolder(f.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open folder ${f.name}`}
+                  style={[styles.folderTile, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <View style={[styles.folderIcon, { backgroundColor: colors.surfaceSunken }]}>
+                    <Folder size={20} color={colors.text3} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13 }}>
+                      {f.name}
+                    </AppText>
+                    <CountUp value={f.itemCount ?? 0}>
+                      {(d) => (
+                        <AppText variant="body" color={colors.muted2} style={{ fontSize: 11 }}>
+                          {d} items
+                        </AppText>
+                      )}
+                    </CountUp>
+                  </View>
+                  <ChevronRight size={16} color={colors.faint} strokeWidth={2.2} />
+                </PressableScale>
+              </Entrance>
             ))}
           </View>
         )}
@@ -224,31 +226,29 @@ export function FilesScreen() {
         <Card style={styles.listCard} padded={false}>
           {files.map((item, index) => {
             return (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  haptics.tap();
-                  setSelected(item);
-                }}
-                android_ripple={ripple(colors.surfaceActive) ?? undefined}
-                style={({ pressed }) => [
-                  styles.fileRow,
-                  index < files.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
-                  pressed && { backgroundColor: colors.surfaceActive },
-                ]}
-              >
-                <View style={[styles.fileIcon, { backgroundColor: colors.surfaceSunken }]}>
-                  {fileIcon(item.type!, colors.text3)}
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
-                    {item.name}
-                  </AppText>
-                  <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 2 }}>
-                    {item.size} · {item.date}
-                  </AppText>
-                </View>
-              </Pressable>
+              <Entrance key={item.id} delay={Math.min(index, 7) * 55}>
+                <PressableScale
+                  onPress={() => setSelected(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.name}`}
+                  style={[
+                    styles.fileRow,
+                    index < files.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
+                  ]}
+                >
+                  <View style={[styles.fileIcon, { backgroundColor: colors.surfaceSunken }]}>
+                    {fileIcon(item.type!, colors.text3)}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
+                      {item.name}
+                    </AppText>
+                    <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 2 }}>
+                      {item.size} · {item.date}
+                    </AppText>
+                  </View>
+                </PressableScale>
+              </Entrance>
             );
           })}
           {files.length === 0 && folders.length === 0 && (
@@ -323,7 +323,7 @@ export function FilesScreen() {
         </View>
 
         <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={styles.filterBody} showsVerticalScrollIndicator={false}>
-          <AppText variant="displaySemibold" color={colors.text2} style={styles.filterSectionLabel}>
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.filterSectionLabel}>
             Drive
           </AppText>
           <View style={styles.filterChipRow}>
@@ -332,7 +332,7 @@ export function FilesScreen() {
             ))}
           </View>
 
-          <AppText variant="displaySemibold" color={colors.text2} style={styles.filterSectionLabel}>
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.filterSectionLabel}>
             File type
           </AppText>
           <View style={styles.filterChipRow}>
@@ -341,7 +341,7 @@ export function FilesScreen() {
             ))}
           </View>
 
-          <AppText variant="displaySemibold" color={colors.text2} style={styles.filterSectionLabel}>
+          <AppText variant="bodyBold" color={colors.muted2} style={styles.filterSectionLabel}>
             Sort by
           </AppText>
           <Card padded={false} style={styles.sortCard}>
@@ -412,27 +412,26 @@ function Breadcrumbs({
     // drive name opens the filter sheet, which is now where drive switching
     // lives since the old chip row was removed.
     return (
-      <Pressable onPress={onSwitchDrive} hitSlop={6} style={styles.rootCrumb}>
+      <PressableScale onPress={onSwitchDrive} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Switch drive, current ${DRIVE_LABELS[drive]}`} style={styles.rootCrumb}>
         <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
           {DRIVE_LABELS[drive]}
         </AppText>
         <ChevronRight size={14} color={colors.faint} strokeWidth={2.4} />
-      </Pressable>
+      </PressableScale>
     );
   }
 
   return (
     <View style={styles.crumbRow}>
-      <Pressable
-        onPress={() => {
-          haptics.tap();
-          onNavigate(trail.length >= 2 ? trail[trail.length - 2].id : null);
-        }}
+      <PressableScale
+        onPress={() => onNavigate(trail.length >= 2 ? trail[trail.length - 2].id : null)}
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Back one folder"
         style={[styles.crumbBack, { borderColor: colors.border, backgroundColor: colors.surface }]}
       >
         <ChevronLeft size={15} color={colors.text2} strokeWidth={2.4} />
-      </Pressable>
+      </PressableScale>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
         <Pressable onPress={() => onNavigate(null)} hitSlop={6}>
           <AppText variant="bodySemibold" color={colors.muted} style={{ fontSize: 12.5 }}>
@@ -506,7 +505,8 @@ const styles = StyleSheet.create({
   footNote: { flexDirection: 'row', gap: 6, marginTop: 8 },
   filterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },
   filterBody: { paddingHorizontal: 20, paddingBottom: 12 },
-  filterSectionLabel: { fontSize: 12.5, marginBottom: 10, marginTop: 4 },
+  microLabel: { fontSize: 10.5, letterSpacing: 1, textTransform: 'uppercase' },
+  filterSectionLabel: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10, marginTop: 4 },
   filterChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 99, paddingHorizontal: 14, paddingVertical: 9 },
   sortCard: { overflow: 'hidden', marginBottom: 8 },

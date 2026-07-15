@@ -11,6 +11,7 @@ import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { FilterChips } from '../../components/FilterChips';
+import { Entrance, CountUp } from '../../components/Motion';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -56,79 +57,96 @@ export function PrivacyScreen({ navigation }: Props) {
         <ScreenHeader title="Privacy" onBack={() => navigation.goBack()} />
       </View>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, lineHeight: 18, marginBottom: 16 }}>
-          You&rsquo;re on a {form.own === 'company' ? 'company-owned' : 'personal (BYOD)'} device. Here is the exact
-          line between what {ORG_NAME} can see and what stays yours.
-        </AppText>
+        <Entrance delay={0}>
+          <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, lineHeight: 18, marginBottom: 16 }}>
+            You&rsquo;re on a {form.own === 'company' ? 'company-owned' : 'personal (BYOD)'} device. Here is the exact
+            line between what {ORG_NAME} can see and what stays yours.
+          </AppText>
+        </Entrance>
 
-        <View style={styles.tally}>
-          <Card style={[styles.tallyCard, { borderColor: colors.border }]}>
-            <View style={styles.tallyTop}>
-              <Eye size={17} color={colors.info} strokeWidth={2.2} />
-              <AppText variant="display" style={{ fontSize: 26, letterSpacing: -0.5 }}>
-                {visibleCount}
+        <Entrance delay={80}>
+          <View style={styles.tally}>
+            <Card style={[styles.tallyCard, { borderColor: colors.border }]}>
+              <View style={styles.tallyTop}>
+                <Eye size={17} color={colors.info} strokeWidth={2.2} />
+                <CountUp value={visibleCount}>
+                  {(d) => (
+                    <AppText variant="display" style={{ fontSize: 26, letterSpacing: -0.5 }}>
+                      {d}
+                    </AppText>
+                  )}
+                </CountUp>
+              </View>
+              <AppText variant="bodyBold" color={colors.muted2} style={styles.tallyLabel}>
+                VISIBLE TO IT
               </AppText>
-            </View>
-            <AppText variant="bodySemibold" color={colors.muted} style={{ fontSize: 11.5 }}>
-              Visible to IT
-            </AppText>
-          </Card>
-          <Card style={[styles.tallyCard, { borderColor: colors.border }]}>
-            <View style={styles.tallyTop}>
-              <EyeOff size={17} color={colors.success} strokeWidth={2.2} />
-              <AppText variant="display" style={{ fontSize: 26, letterSpacing: -0.5 }}>
-                {privateCount}
+            </Card>
+            <Card style={[styles.tallyCard, { borderColor: colors.border }]}>
+              <View style={styles.tallyTop}>
+                <EyeOff size={17} color={colors.success} strokeWidth={2.2} />
+                <CountUp value={privateCount}>
+                  {(d) => (
+                    <AppText variant="display" style={{ fontSize: 26, letterSpacing: -0.5 }}>
+                      {d}
+                    </AppText>
+                  )}
+                </CountUp>
+              </View>
+              <AppText variant="bodyBold" color={colors.muted2} style={styles.tallyLabel}>
+                STAYS PRIVATE
               </AppText>
-            </View>
-            <AppText variant="bodySemibold" color={colors.muted} style={{ fontSize: 11.5 }}>
-              Stays private
-            </AppText>
-          </Card>
-        </View>
+            </Card>
+          </View>
+        </Entrance>
 
-        <View style={{ marginBottom: 12 }}>
-          <FilterChips
-            value={filter}
-            onChange={(k) => setFilter(k as typeof filter)}
-            options={[
-              { key: 'all', label: `All · ${DATA.length}` },
-              { key: 'visible', label: `Visible · ${visibleCount}` },
-              { key: 'private', label: `Private · ${privateCount}` },
-            ]}
-          />
-        </View>
+        <Entrance delay={160}>
+          <View style={{ marginBottom: 12 }}>
+            <FilterChips
+              value={filter}
+              onChange={(k) => setFilter(k as typeof filter)}
+              options={[
+                { key: 'all', label: `All · ${DATA.length}` },
+                { key: 'visible', label: `Visible · ${visibleCount}` },
+                { key: 'private', label: `Private · ${privateCount}` },
+              ]}
+            />
+          </View>
+        </Entrance>
 
         <Card style={{ overflow: 'hidden' }} padded={false}>
           {rows.map((r, i) => (
-            <View
-              key={r.label}
-              style={[styles.row, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
-            >
-              <View style={[styles.rowIcon, { backgroundColor: r.visible ? colors.infoTint : colors.successTint }]}>
-                <r.Icon size={16} color={r.visible ? colors.info : colors.success} strokeWidth={2} />
+            <Entrance key={r.label} delay={220 + Math.min(i, 7) * 55}>
+              <View
+                style={[styles.row, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
+              >
+                <View style={[styles.rowIcon, { backgroundColor: r.visible ? colors.infoTint : colors.successTint }]}>
+                  <r.Icon size={16} color={r.visible ? colors.info : colors.success} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                    {r.label}
+                  </AppText>
+                  <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 1 }}>
+                    {r.detail}
+                  </AppText>
+                </View>
+                <View style={[styles.pill, { backgroundColor: r.visible ? colors.infoTint : colors.successTint }]}>
+                  <View style={[styles.pillDot, { backgroundColor: r.visible ? colors.info : colors.success }]} />
+                  <AppText variant="bodyBold" color={r.visible ? colors.info : colors.success} style={{ fontSize: 10.5 }}>
+                    {r.visible ? 'IT' : 'Private'}
+                  </AppText>
+                </View>
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                  {r.label}
-                </AppText>
-                <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 1 }}>
-                  {r.detail}
-                </AppText>
-              </View>
-              <View style={[styles.pill, { backgroundColor: r.visible ? colors.infoTint : colors.successTint }]}>
-                <View style={[styles.pillDot, { backgroundColor: r.visible ? colors.info : colors.success }]} />
-                <AppText variant="bodyBold" color={r.visible ? colors.info : colors.success} style={{ fontSize: 10.5 }}>
-                  {r.visible ? 'IT' : 'Private'}
-                </AppText>
-              </View>
-            </View>
+            </Entrance>
           ))}
         </Card>
 
-        <AppText variant="body" color={colors.muted2} style={styles.foot}>
-          Managed by {ORG_NAME} IT · you can review this anytime. Personal (BYOD) devices share far less than
-          company-owned ones.
-        </AppText>
+        <Entrance delay={260}>
+          <AppText variant="body" color={colors.muted2} style={styles.foot}>
+            Managed by {ORG_NAME} IT · you can review this anytime. Personal (BYOD) devices share far less than
+            company-owned ones.
+          </AppText>
+        </Entrance>
       </ScrollView>
     </SafeAreaView>
   );
@@ -139,6 +157,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingBottom: 34 },
   tally: { flexDirection: 'row', gap: 12, marginBottom: 18 },
   tallyCard: { flex: 1 },
+  tallyLabel: { fontSize: 10.5, letterSpacing: 1, textTransform: 'uppercase' },
   tallyTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

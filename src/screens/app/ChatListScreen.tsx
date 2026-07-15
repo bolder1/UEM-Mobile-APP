@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
 import { DIRECTORY } from '../../data/mockData';
+import { Entrance, PressableScale, CountUp } from '../../components/Motion';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -70,37 +71,43 @@ export function ChatListScreen({ navigation }: Props) {
       >
         <Menu size={18} color={colors.text3} strokeWidth={2} />
       </Pressable>
-      <View style={styles.header}>
-        <AppText variant="display" style={{ fontSize: 22 }}>
-          Chat
-        </AppText>
-      </View>
+      <Entrance delay={0}>
+        <View style={styles.header}>
+          <AppText variant="display" style={{ fontSize: 22 }}>
+            Chat
+          </AppText>
+        </View>
+      </Entrance>
 
-      <View style={{ marginBottom: 14 }}>
-        <SearchField value={q} onChangeText={setQ} placeholder="Search people and spaces" />
-      </View>
+      <Entrance delay={80}>
+        <View style={{ marginBottom: 14 }}>
+          <SearchField value={q} onChangeText={setQ} placeholder="Search people and spaces" />
+        </View>
+      </Entrance>
 
       {!query ? (
-        <Pressable onPress={() => navigation.navigate('Notifications')}>
-          <Card style={styles.pinned}>
-            <View style={[styles.pinIcon, { backgroundColor: colors.primaryTint }]}>
-              <Megaphone size={18} color={colors.primary} strokeWidth={2} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                Company announcements
-              </AppText>
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
-                Broadcasts from {ORG_NAME} IT
-              </AppText>
-            </View>
-            <View style={[styles.pinPill, { backgroundColor: colors.surfaceSunken }]}>
-              <AppText variant="bodyBold" color={colors.muted} style={{ fontSize: 10 }}>
-                PINNED
-              </AppText>
-            </View>
-          </Card>
-        </Pressable>
+        <Entrance delay={160}>
+          <PressableScale onPress={() => navigation.navigate('Notifications')}>
+            <Card style={styles.pinned}>
+              <View style={[styles.pinIcon, { backgroundColor: colors.primaryTint }]}>
+                <Megaphone size={18} color={colors.primary} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
+                  Company announcements
+                </AppText>
+                <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
+                  Broadcasts from {ORG_NAME} IT
+                </AppText>
+              </View>
+              <View style={[styles.pinPill, { backgroundColor: colors.surfaceSunken }]}>
+                <AppText variant="bodyBold" color={colors.muted2} style={{ fontSize: 10, letterSpacing: 0.9 }}>
+                  PINNED
+                </AppText>
+              </View>
+            </Card>
+          </PressableScale>
+        </Entrance>
       ) : null}
 
       {filtered.length === 0 ? (
@@ -110,18 +117,20 @@ export function ChatListScreen({ navigation }: Props) {
           body={`Nothing matches “${q}”.`}
         />
       ) : (
+        <Entrance delay={240}>
         <Card style={styles.listCard} padded={false}>
           <FlatList
             data={filtered}
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item, index }) => (
+              <Entrance delay={Math.min(index, 7) * 55}>
               <Pressable
                 onPress={() => openThread(item.id)}
                 style={({ pressed }) => [
                   styles.row,
                   index < filtered.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
-                  pressed && { backgroundColor: colors.surfaceActive },
+                  pressed && { backgroundColor: colors.surfaceActive, transform: [{ scale: 0.985 }] },
                 ]}
               >
                 <Avatar initials={item.init} color={item.color} size={44} online={item.online} />
@@ -148,9 +157,11 @@ export function ChatListScreen({ navigation }: Props) {
                 </View>
               </View>
             </Pressable>
+              </Entrance>
           )}
         />
         </Card>
+        </Entrance>
       )}
 
       <View style={styles.footNote}>
@@ -182,7 +193,15 @@ export function ChatListScreen({ navigation }: Props) {
               New message
             </AppText>
             <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-              {ORG_NAME} directory · {DIRECTORY.length} people
+              {ORG_NAME} directory ·{' '}
+              <CountUp value={DIRECTORY.length}>
+                {(d) => (
+                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12 }}>
+                    {d}
+                  </AppText>
+                )}
+              </CountUp>{' '}
+              people
             </AppText>
           </View>
           <Pressable
@@ -197,25 +216,24 @@ export function ChatListScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           style={{ borderTopWidth: 1, borderTopColor: colors.hairline }}
           contentContainerStyle={{ paddingBottom: 28 }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => selectContact(item.id)}
-              style={({ pressed }) => [
-                styles.directoryRow,
-                { borderBottomColor: colors.hairline2 },
-                pressed && { backgroundColor: colors.surfaceActive },
-              ]}
-            >
-              <Avatar initials={item.init} color={item.color} size={40} online />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14 }}>
-                  {item.name}
-                </AppText>
-                <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
-                  {item.role}
-                </AppText>
-              </View>
-            </Pressable>
+          renderItem={({ item, index }) => (
+            <Entrance delay={Math.min(index, 7) * 55}>
+              <PressableScale
+                onPress={() => selectContact(item.id)}
+                accessibilityLabel={`Message ${item.name}`}
+                style={[styles.directoryRow, { borderBottomColor: colors.hairline2 }]}
+              >
+                <Avatar initials={item.init} color={item.color} size={40} online />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14 }}>
+                    {item.name}
+                  </AppText>
+                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
+                    {item.role}
+                  </AppText>
+                </View>
+              </PressableScale>
+            </Entrance>
           )}
         />
       </BottomSheet>
