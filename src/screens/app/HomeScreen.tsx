@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight, Cast, Activity as ActivityIcon } from 'lucide-react-native';
+import { Bell, Lock, Folder, LayoutGrid, ShieldCheck, EyeOff, ChevronRight, Cast, Activity as ActivityIcon, Menu } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -36,6 +36,7 @@ export function HomeScreen({ navigation }: Props) {
   const lastSync = useAppStore((s) => s.lastSync);
   const syncing = useAppStore((s) => s.syncing);
   const syncNow = useAppStore((s) => s.syncNow);
+  const setDrawer = useAppStore((s) => s.setDrawer);
   const notifications = useAppStore((s) => s.notifications);
   const unreadNotifs = unreadNotifCount(notifications);
 
@@ -61,14 +62,22 @@ export function HomeScreen({ navigation }: Props) {
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <StatusBar style="light" />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 34 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={syncing} onRefresh={onRefresh} tintColor={colors.muted} />}
       >
         {/* ---- dark greeting header ---- */}
         <DarkPanel style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 26 }}>
           <View style={styles.brandRow}>
-            <Image source={require('../../../assets/logo-mark.png')} style={{ width: 22, height: 22 }} resizeMode="contain" />
+            <Pressable
+              onPress={() => { haptics.tap(); setDrawer(true); }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Open menu"
+              style={styles.iconBtn}
+            >
+              <Menu size={18} color="#FFFFFF" strokeWidth={2} />
+            </Pressable>
             <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 13.5, flex: 1 }}>
               UEM Companion
             </AppText>
@@ -108,6 +117,23 @@ export function HomeScreen({ navigation }: Props) {
         </DarkPanel>
 
         <View style={styles.body}>
+          {/* ---- quick access launchpad (top) ---- */}
+          <AppText variant="displaySemibold" style={[styles.sectionLabel, styles.sectionLabelFirst]}>Quick access</AppText>
+          <View style={styles.grid}>
+            <QuickTile label="Secure tunnel" active={vpnOn} onPress={() => navigation.navigate('Vpn')}
+              icon={<Lock size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Files" onPress={() => navigation.navigate('Files')}
+              icon={<Folder size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Certificates" badge={certsPending} onPress={() => navigation.navigate('Certs')}
+              icon={<ShieldCheck size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Screen cast" onPress={() => navigation.navigate('Cast')}
+              icon={<Cast size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Activity" onPress={() => navigation.navigate('Activity')}
+              icon={<ActivityIcon size={19} color={colors.text3} strokeWidth={2} />} />
+            <QuickTile label="Apps" badge={appsToAct} onPress={() => navigation.navigate('Apps')}
+              icon={<LayoutGrid size={19} color={colors.text3} strokeWidth={2} />} />
+          </View>
+
           {/* ---- needs your action (banner only when something needs you) ---- */}
           {actionsCount > 0 ? (
             <>
@@ -186,7 +212,7 @@ export function HomeScreen({ navigation }: Props) {
             </>
           ) : (
             <>
-              <AppText variant="displaySemibold" style={[styles.sectionLabel, styles.sectionLabelFirst]}>Your device</AppText>
+              <AppText variant="displaySemibold" style={styles.sectionLabel}>Your device</AppText>
               <Card style={styles.rowCard}>
                 <View style={[styles.rowIcon, { backgroundColor: colors.successTint }]}>
                   <ShieldCheck size={20} color={colors.success} strokeWidth={2} />
@@ -218,22 +244,6 @@ export function HomeScreen({ navigation }: Props) {
             </Card>
           </Pressable>
 
-          {/* ---- quick access launchpad ---- */}
-          <AppText variant="displaySemibold" style={styles.sectionLabel}>Quick access</AppText>
-          <View style={styles.grid}>
-            <QuickTile label="Secure tunnel" active={vpnOn} onPress={() => navigation.navigate('Vpn')}
-              icon={<Lock size={19} color={colors.text3} strokeWidth={2} />} />
-            <QuickTile label="Files" onPress={() => navigation.navigate('Files')}
-              icon={<Folder size={19} color={colors.text3} strokeWidth={2} />} />
-            <QuickTile label="Certificates" badge={certsPending} onPress={() => navigation.navigate('Certs')}
-              icon={<ShieldCheck size={19} color={colors.text3} strokeWidth={2} />} />
-            <QuickTile label="Screen cast" onPress={() => navigation.navigate('Cast')}
-              icon={<Cast size={19} color={colors.text3} strokeWidth={2} />} />
-            <QuickTile label="Activity" onPress={() => navigation.navigate('Activity')}
-              icon={<ActivityIcon size={19} color={colors.text3} strokeWidth={2} />} />
-            <QuickTile label="Apps" badge={appsToAct} onPress={() => navigation.navigate('Apps')}
-              icon={<LayoutGrid size={19} color={colors.text3} strokeWidth={2} />} />
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -287,7 +297,7 @@ const styles = StyleSheet.create({
   qicon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   qbadge: { position: 'absolute', top: 8, right: 9, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, zIndex: 2 },
   qactive: { position: 'absolute', bottom: 0, left: 16, right: 16, height: 3, borderRadius: 2 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 10, marginHorizontal: 2 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 22, marginBottom: 10, marginHorizontal: 2 },
   countPill: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   sectionLabel: { fontSize: 14, marginTop: 22, marginBottom: 10, marginHorizontal: 2 },
   sectionLabelFirst: { marginTop: 4 },

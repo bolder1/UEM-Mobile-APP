@@ -5,8 +5,8 @@ import { RootStackParamList } from './types';
 // (the global Toast) can navigate — e.g. tap an audit line through to Activity.
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-export function navigate(name: keyof RootStackParamList) {
+export function navigate(name: keyof RootStackParamList, params?: object) {
   if (navigationRef.isReady()) {
-    navigationRef.navigate(name as any);
+    navigationRef.navigate(name as any, params as any);
   }
 }

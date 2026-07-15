@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Palette, Bell, EyeOff, Activity as ActivityIcon, Smartphone, Headphones, ChevronRight, LogOut, Check } from 'lucide-react-native';
+import { Palette, Bell, EyeOff, Activity as ActivityIcon, Smartphone, Headphones, ChevronRight, LogOut, Check, Menu } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -37,6 +37,7 @@ export function ProfileScreen({ navigation }: Props) {
   const lastSync = useAppStore((s) => s.lastSync);
   const openChat = useAppStore((s) => s.openChat);
   const logActivity = useAppStore((s) => s.logActivity);
+  const setDrawer = useAppStore((s) => s.setDrawer);
   const [unOpen, setUnOpen] = useState(false);
   const [unVal, setUnVal] = useState('');
 
@@ -59,8 +60,19 @@ export function ProfileScreen({ navigation }: Props) {
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <StatusBar style="light" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <DarkPanel style={{ paddingTop: insets.top + 16, paddingHorizontal: 22, paddingBottom: 34 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 34 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <DarkPanel style={{ paddingTop: insets.top + 14, paddingHorizontal: 22, paddingBottom: 34 }}>
+            <View style={styles.menuRow}>
+              <Pressable
+                onPress={() => { haptics.tap(); setDrawer(true); }}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Open menu"
+                style={styles.menuBtn}
+              >
+                <Menu size={18} color="#FFFFFF" strokeWidth={2} />
+              </Pressable>
+            </View>
             <View style={[styles.bigAvatar, { backgroundColor: colors.primary }]}>
               <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 24 }}>
                 {initials}
@@ -247,6 +259,8 @@ function Cell({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  menuBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.09)', alignItems: 'center', justifyContent: 'center' },
   bigAvatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
   chip: {
     flexDirection: 'row',

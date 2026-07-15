@@ -1,7 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from './types';
-import { CustomTabBar } from './CustomTabBar';
 import { HomeScreen } from '../screens/app/HomeScreen';
 import { ChatListScreen } from '../screens/app/ChatListScreen';
 import { AppsScreen } from '../screens/app/AppsScreen';
@@ -13,7 +12,7 @@ export function MainTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={() => null}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Apps" component={AppsScreen} />

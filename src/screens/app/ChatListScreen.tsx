@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Lock, X, Megaphone, Search } from 'lucide-react-native';
+import { Plus, Lock, X, Megaphone, Search, Menu } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -29,6 +29,7 @@ export function ChatListScreen({ navigation }: Props) {
   const unread = useAppStore((s) => s.unread);
   const openChat = useAppStore((s) => s.openChat);
   const startChatWithContact = useAppStore((s) => s.startChatWithContact);
+  const setDrawer = useAppStore((s) => s.setDrawer);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [q, setQ] = useState('');
 
@@ -60,6 +61,15 @@ export function ChatListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
+      <Pressable
+        onPress={() => { haptics.tap(); setDrawer(true); }}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel="Open menu"
+        style={[styles.menuBtn, { backgroundColor: colors.surfaceSunken }]}
+      >
+        <Menu size={18} color={colors.text3} strokeWidth={2} />
+      </Pressable>
       <View style={styles.header}>
         <AppText variant="display" style={{ fontSize: 22 }}>
           Chat
@@ -215,7 +225,8 @@ export function ChatListScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 20 },
-  header: { paddingVertical: 12 },
+  header: { paddingVertical: 10 },
+  menuBtn: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   pinned: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginBottom: 12 },
   pinIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   pinPill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
@@ -228,7 +239,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 96,
+    bottom: 28,
     width: 56,
     height: 56,
     borderRadius: 28,

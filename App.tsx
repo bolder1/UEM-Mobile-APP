@@ -18,11 +18,14 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
 import { Toast } from './src/components/Toast';
+import { Drawer } from './src/components/Drawer';
+import { useAppStore } from './src/state/store';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function Root() {
   const { colors, isDark } = useTheme();
+  const setActiveRoute = useAppStore((s) => s.setActiveRoute);
 
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -37,10 +40,18 @@ function Root() {
   };
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onStateChange={() => {
+        const r = navigationRef.getCurrentRoute();
+        if (r) setActiveRoute(r.name);
+      }}
+    >
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootNavigator />
       <Toast />
+      <Drawer />
     </NavigationContainer>
   );
 }

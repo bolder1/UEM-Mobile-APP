@@ -94,6 +94,10 @@ interface AppStoreState {
   activity: ActivityEntry[];
   toast: ToastMsg | null;
 
+  // navigation drawer
+  drawerOpen: boolean;
+  activeRoute: string;
+
   // unenroll
   unVal: string;
 
@@ -146,6 +150,10 @@ interface AppStoreState {
   showToast: (message: string, tone?: ToastTone, opts?: { logged?: boolean; actor?: string }) => void;
   hideToast: () => void;
 
+  // actions — drawer
+  setDrawer: (v: boolean) => void;
+  setActiveRoute: (r: string) => void;
+
   // actions — unenroll / reset
   setUnVal: (v: string) => void;
   resetAll: () => void;
@@ -194,6 +202,8 @@ const initialState = {
   notifications: [...INITIAL_NOTIFICATIONS],
   activity: [...INITIAL_ACTIVITY],
   toast: null as ToastMsg | null,
+  drawerOpen: false,
+  activeRoute: 'Home',
   unVal: '',
 };
 
@@ -437,6 +447,9 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   showToast: (message, tone = 'success', opts) =>
     set({ toast: { id: toastSeq++, message, tone, logged: opts?.logged, actor: opts?.actor } }),
   hideToast: () => set({ toast: null }),
+
+  setDrawer: (v) => set({ drawerOpen: v }),
+  setActiveRoute: (r) => set({ activeRoute: r }),
 
   setUnVal: (v) => set({ unVal: v }),
 

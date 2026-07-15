@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, RefreshCw, X, Lock, UserCog, Download, Check, Clock } from 'lucide-react-native';
+import { Search, RefreshCw, X, Lock, UserCog, Download, Check, Clock, Menu } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -26,6 +26,7 @@ export function AppsScreen() {
   const appSt = useAppStore((s) => s.appSt);
   const progress = useAppStore((s) => s.progress);
   const appAction = useAppStore((s) => s.appAction);
+  const setDrawer = useAppStore((s) => s.setDrawer);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CatalogApp | null>(null);
 
@@ -41,6 +42,15 @@ export function AppsScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Pressable
+          onPress={() => { haptics.tap(); setDrawer(true); }}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={[styles.menuBtn, { backgroundColor: colors.surfaceSunken }]}
+        >
+          <Menu size={18} color={colors.text3} strokeWidth={2} />
+        </Pressable>
         <AppText variant="display" style={{ fontSize: 22, marginBottom: 2 }}>
           Apps
         </AppText>
@@ -381,7 +391,8 @@ function DetailStat({ value, label, icon }: { value: string; label: string; icon
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 110 },
+  scroll: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 34 },
+  menuBtn: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
