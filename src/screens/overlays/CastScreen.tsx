@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Cast, Monitor, Headphones, Lock, Shield, Square, Clock, Signal, History, UserCog, Eye, Check } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Cast, Monitor, Headphones, Lock, Shield, Square, Clock, Signal, History, UserCog, Eye, Check, Pause, X } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -62,7 +63,13 @@ export function CastScreen({ navigation }: Props) {
   };
 
   const elapsed = `${Math.floor(castSecs / 60)}:${('0' + (castSecs % 60)).slice(-2)}`;
-  const stageColor = cast === 'live' ? colors.success : colors.primary;
+  const stageColor = colors.primary;
+
+  // A live screen share is a focused, take-over moment — render it as its own
+  // dark session rather than inside the light casting chrome.
+  if (cast === 'live') {
+    return <LiveSession target={castTarget} elapsed={elapsed} ownPersonal={form.own === 'personal'} onEnd={stopCast} />;
+  }
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
@@ -179,76 +186,18 @@ export function CastScreen({ navigation }: Props) {
                 <SpinningDashedRing size={208} color={colors.primary} duration={2400} />
               </>
             )}
-            {cast === 'live' && <PulseRings size={168} color={colors.success} duration={2600} count={2} />}
             <View style={[styles.stageBox, { backgroundColor: stageColor, shadowColor: stageColor }]}>
               <Cast size={46} color="#FFFFFF" strokeWidth={2} />
             </View>
           </View>
 
-          {cast === 'connecting' ? (
-            <>
-              <AppText variant="displaySemibold" style={{ fontSize: 17, marginTop: 12 }}>
-                Connecting…
-              </AppText>
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, marginTop: 2 }}>
-                {castTarget?.name}
-              </AppText>
-            </>
-          ) : (
-            <>
-              <Card style={[styles.activeCard, { borderColor: colors.success }]}>
-                <View style={styles.activeTopRow}>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="displaySemibold" style={{ fontSize: 16 }}>
-                      Screen sharing active
-                    </AppText>
-                    <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-                      {castTarget?.isAssist ? 'Your screen is visible to the admin' : `Mirroring to ${castTarget?.name}`}
-                    </AppText>
-                  </View>
-                  <View style={[styles.activePill, { backgroundColor: colors.successTint }]}>
-                    <PulseDot color={colors.success} size={7} />
-                    <AppText variant="bodyBold" color={colors.success} style={{ fontSize: 11 }}>
-                      Active
-                    </AppText>
-                  </View>
-                </View>
-              </Card>
-
-              <View style={styles.statTiles}>
-                <StatTile icon={<Clock size={16} color={colors.text3} strokeWidth={2} />} value={elapsed} label="Duration" />
-                <StatTile icon={<Signal size={16} color={colors.text3} strokeWidth={2} />} value="HD" label="Quality" />
-                <StatTile icon={<Shield size={16} color={colors.text3} strokeWidth={2} />} value="AES-256" label="Encrypted" />
-              </View>
-
-              <Card style={[styles.liveInfoCard, { marginTop: 18 }]} padded={false}>
-                <InfoLine icon={<Shield size={17} color={colors.text3} strokeWidth={2} />} text="Session protected with AES-256 end-to-end encryption" />
-                <InfoLine
-                  icon={<Monitor size={17} color={colors.text3} strokeWidth={2} />}
-                  text={castTarget?.isAssist ? 'This session was started by your IT administrator' : 'Notifications are hidden while casting'}
-                  bordered
-                />
-                {form.own === 'personal' && (
-                  <InfoLine
-                    icon={<Shield size={17} color={colors.text3} strokeWidth={2} />}
-                    text="Personal apps stay private on your device"
-                    bordered
-                  />
-                )}
-              </Card>
-            </>
-          )}
+          <AppText variant="displaySemibold" style={{ fontSize: 17, marginTop: 12 }}>
+            Connecting…
+          </AppText>
+          <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, marginTop: 2 }}>
+            {castTarget?.name}
+          </AppText>
         </ScrollView>
-        {cast === 'live' && (
-          <View style={[styles.footer, { borderTopColor: colors.hairline, backgroundColor: colors.bg }]}>
-            <Button
-              label="Leave session"
-              variant="danger"
-              onPress={stopCast}
-              icon={<Square size={16} color="#FFFFFF" fill="#FFFFFF" />}
-            />
-          </View>
-        )}
         </>
       )}
 
@@ -289,6 +238,140 @@ export function CastScreen({ navigation }: Props) {
     </SafeAreaView>
   );
 }
+
+/** The dark, focused "you are live" screen-share session. */
+function LiveSession({ target, elapsed, ownPersonal, onEnd }: { target: CastTarget | null; elapsed: string; ownPersonal: boolean; onEnd: () => void }) {
+  const [paused, setPaused] = useState(false);
+  const isAssist = !!target?.isAssist;
+  const RED = '#F35B5B';
+  const AMBER = '#E0A93C';
+  const accent = paused ? AMBER : RED;
+  return (
+    <SafeAreaView style={liveStyles.root} edges={['top', 'bottom']}>
+      <StatusBar style="light" />
+      <View style={liveStyles.top}>
+        <View style={[liveStyles.pill, { backgroundColor: paused ? 'rgba(224,169,60,0.16)' : 'rgba(243,91,91,0.16)' }]}>
+          <View style={[liveStyles.pillDot, { backgroundColor: accent }]} />
+          <AppText variant="bodyBold" color={accent} style={{ fontSize: 11.5, letterSpacing: 0.4 }}>
+            {paused ? 'PAUSED' : 'LIVE'}
+          </AppText>
+        </View>
+        <View style={{ flex: 1 }} />
+        <AppText variant="bodySemibold" color="rgba(255,255,255,0.85)" style={{ fontSize: 13.5 }}>
+          {elapsed}
+        </AppText>
+      </View>
+
+      <View style={liveStyles.stage}>
+        <View style={liveStyles.hero}>
+          {!paused && <PulseRings size={132} color={RED} duration={2400} count={2} />}
+          <View style={[liveStyles.avatar, !isAssist && { backgroundColor: '#2A323C' }]}>
+            {isAssist ? (
+              <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 28 }}>RK</AppText>
+            ) : (
+              <Monitor size={38} color="#FFFFFF" strokeWidth={2} />
+            )}
+          </View>
+          <View style={[liveStyles.eyeBadge, { backgroundColor: accent }]}>
+            <Eye size={17} color="#FFFFFF" strokeWidth={2.4} />
+          </View>
+        </View>
+        <AppText variant="display" color="#FFFFFF" style={liveStyles.h1}>
+          {paused ? 'Sharing paused' : isAssist ? 'Ravi Kumar is viewing your screen' : `Mirroring to ${target?.name}`}
+        </AppText>
+        <AppText variant="body" color="rgba(255,255,255,0.55)" style={liveStyles.sub}>
+          {isAssist ? `IT Admin · ${ORG_NAME} · started ${elapsed} ago` : target?.sub}
+        </AppText>
+      </View>
+
+      <View style={liveStyles.card}>
+        <LiveRow ok={!paused} highlight={paused} text={paused ? 'Paused — they can’t see your screen right now' : 'They see this screen, live'} />
+        <LiveRow ok={false} bordered text="They can’t tap or control your device" />
+        <LiveRow ok={false} bordered text="Nothing is kept after you end the session" />
+      </View>
+
+      <View style={liveStyles.preview}>
+        <View style={liveStyles.previewThumb}>
+          <Monitor size={16} color="#8A929C" strokeWidth={2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText variant="bodySemibold" color="rgba(255,255,255,0.9)" style={{ fontSize: 12.5 }}>
+            Your screen · {paused ? 'paused' : 'shared'}
+          </AppText>
+          {ownPersonal ? (
+            <AppText variant="body" color="rgba(255,255,255,0.5)" style={{ fontSize: 11, marginTop: 1 }}>
+              Personal apps stay hidden
+            </AppText>
+          ) : null}
+        </View>
+        <View style={[liveStyles.gd, { backgroundColor: paused ? AMBER : '#3DBB7D' }]} />
+      </View>
+
+      <View style={{ flex: 1 }} />
+
+      <View style={liveStyles.controls}>
+        <Pressable
+          onPress={() => { haptics.tap(); setPaused((p) => !p); }}
+          accessibilityRole="button"
+          accessibilityLabel={paused ? 'Resume sharing' : 'Pause sharing'}
+          style={liveStyles.pauseBtn}
+        >
+          {paused ? <Cast size={20} color="#FFFFFF" strokeWidth={2} /> : <Pause size={20} color="#FFFFFF" strokeWidth={2} />}
+        </Pressable>
+        <Pressable
+          onPress={() => { haptics.tap(); onEnd(); }}
+          accessibilityRole="button"
+          accessibilityLabel="End session"
+          style={[liveStyles.endBtn, { backgroundColor: RED }]}
+        >
+          <Square size={17} color="#FFFFFF" strokeWidth={2.2} />
+          <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 15.5 }}>End session</AppText>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function LiveRow({ ok, bordered, highlight, text }: { ok: boolean; bordered?: boolean; highlight?: boolean; text: string }) {
+  return (
+    <View style={[liveStyles.liveRow, bordered && { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }]}>
+      <View style={[liveStyles.rowChip, { backgroundColor: highlight ? 'rgba(224,169,60,0.22)' : ok ? 'rgba(29,158,95,0.22)' : 'rgba(255,255,255,0.08)' }]}>
+        {ok ? (
+          <Check size={14} color="#3DBB7D" strokeWidth={2.6} />
+        ) : highlight ? (
+          <Pause size={13} color="#E0A93C" strokeWidth={2.4} />
+        ) : (
+          <X size={14} color="#8A929C" strokeWidth={2.6} />
+        )}
+      </View>
+      <AppText variant="bodyMedium" color={ok || highlight ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.62)'} style={{ fontSize: 13, flex: 1 }}>
+        {text}
+      </AppText>
+    </View>
+  );
+}
+
+const liveStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#0E1217', paddingHorizontal: 24, paddingTop: 8 },
+  top: { flexDirection: 'row', alignItems: 'center' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 6 },
+  pillDot: { width: 8, height: 8, borderRadius: 4 },
+  stage: { alignItems: 'center', marginTop: 40 },
+  hero: { width: 132, height: 132, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: '#7A5AF8', alignItems: 'center', justifyContent: 'center' },
+  eyeBadge: { position: 'absolute', right: 4, bottom: 4, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#0E1217' },
+  h1: { fontSize: 21, textAlign: 'center', marginTop: 22, letterSpacing: -0.2 },
+  sub: { fontSize: 12.5, textAlign: 'center', marginTop: 5 },
+  card: { backgroundColor: '#1B2129', borderRadius: 18, paddingHorizontal: 15, marginTop: 24 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
+  rowChip: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  preview: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1B2129', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, marginTop: 12 },
+  previewThumb: { width: 46, height: 32, borderRadius: 6, backgroundColor: '#0E1217', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  gd: { width: 8, height: 8, borderRadius: 4 },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 8 },
+  pauseBtn: { width: 54, height: 54, borderRadius: 16, backgroundColor: '#1B2129', alignItems: 'center', justifyContent: 'center' },
+  endBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, height: 54, borderRadius: 16 },
+});
 
 function ConsentRow({ tone, text }: { tone: 'see' | 'never'; text: string }) {
   const { colors } = useTheme();
