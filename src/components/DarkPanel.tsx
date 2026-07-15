@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeProvider';
+import { GlowOrb } from './Motion';
 
 /** The rounded-skirt hero header used on Home and Profile. It adapts to the
  *  theme via the `heroBg` token — a near-black ink in light mode (premium
@@ -21,6 +22,13 @@ export function DarkPanel({ children, style }: { children: React.ReactNode; styl
           start={{ x: 1, y: 0 }}
           end={{ x: 0.1, y: 0.9 }}
           style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.22 : 0.14 }]}
+        />
+        {/* slow counter-rotating glow keeps the hero feeling alive */}
+        <GlowOrb
+          size={260}
+          colors={[colors.primary, colors.primaryStrong]}
+          opacity={isDark ? 0.2 : 0.12}
+          style={{ top: -90, right: -70 }}
         />
       </View>
       <View pointerEvents="none" style={styles.orbitWrap}>

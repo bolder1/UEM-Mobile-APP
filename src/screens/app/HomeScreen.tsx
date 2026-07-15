@@ -7,6 +7,8 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
 import { DarkPanel } from '../../components/DarkPanel';
+import { GlassChip, GlassPill } from '../../components/Glass';
+import { Entrance } from '../../components/Motion';
 import {
   useAppStore, ORG_NAME, DEFAULT_USER_NAME, pendingCertCount, unreadNotifCount,
 } from '../../state/store';
@@ -74,9 +76,10 @@ export function HomeScreen({ navigation }: Props) {
               hitSlop={6}
               accessibilityRole="button"
               accessibilityLabel="Open menu"
-              style={styles.iconBtn}
             >
-              <Menu size={18} color="#FFFFFF" strokeWidth={2} />
+              <GlassChip on="dark" size={34} radius={17}>
+                <Menu size={18} color="#FFFFFF" strokeWidth={2} />
+              </GlassChip>
             </Pressable>
             <AppText variant="bodySemibold" color="#FFFFFF" style={{ fontSize: 13.5, flex: 1 }}>
               UEM Companion
@@ -89,10 +92,11 @@ export function HomeScreen({ navigation }: Props) {
               hitSlop={6}
               accessibilityRole="button"
               accessibilityLabel={unreadNotifs > 0 ? `Notifications, ${unreadNotifs} unread` : 'Notifications'}
-              style={styles.iconBtn}
             >
-              <Bell size={17} color="#FFFFFF" strokeWidth={2} />
-              {unreadNotifs > 0 ? <View style={[styles.bellDot, { backgroundColor: colors.primary }]} /> : null}
+              <GlassChip on="dark" size={34} radius={17}>
+                <Bell size={17} color="#FFFFFF" strokeWidth={2} />
+                {unreadNotifs > 0 ? <View style={[styles.bellDot, { backgroundColor: colors.primary }]} /> : null}
+              </GlassChip>
             </Pressable>
             <Pressable onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel="Your profile" style={[styles.avatar, { backgroundColor: colors.primary }]} hitSlop={4}>
               <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 12.5 }}>
@@ -108,16 +112,17 @@ export function HomeScreen({ navigation }: Props) {
             {ORG_NAME} · secure workspace
           </AppText>
 
-          <View style={styles.hchip}>
+          <GlassPill on="dark" style={{ marginTop: 15 }}>
             <View style={[styles.dot, { backgroundColor: colors.successStrong }]} />
             <AppText variant="bodySemibold" color="rgba(255,255,255,0.9)" style={{ fontSize: 12 }}>
               {vpnOn ? 'Secure tunnel on · WireGuard®' : `Compliant · synced ${lastSync}`}
             </AppText>
-          </View>
+          </GlassPill>
         </DarkPanel>
 
         <View style={styles.body}>
           {/* ---- quick access launchpad (top) ---- */}
+          <Entrance delay={0}>
           <AppText variant="displaySemibold" style={[styles.sectionLabel, styles.sectionLabelFirst]}>Quick access</AppText>
           <View style={styles.grid}>
             <QuickTile label="Secure tunnel" active={vpnOn} onPress={() => navigation.navigate('Vpn')}
@@ -133,8 +138,10 @@ export function HomeScreen({ navigation }: Props) {
             <QuickTile label="Apps" badge={appsToAct} onPress={() => navigation.navigate('Apps')}
               icon={<LayoutGrid size={19} color={colors.text3} strokeWidth={2} />} />
           </View>
+          </Entrance>
 
           {/* ---- needs your action (banner only when something needs you) ---- */}
+          <Entrance delay={110}>
           {actionsCount > 0 ? (
             <>
               <View style={styles.sectionHead}>
@@ -226,8 +233,10 @@ export function HomeScreen({ navigation }: Props) {
               </Card>
             </>
           )}
+          </Entrance>
 
           {/* ---- privacy signature ---- */}
+          <Entrance delay={200}>
           <AppText variant="displaySemibold" style={styles.sectionLabel}>Your privacy</AppText>
           <Pressable onPress={() => { haptics.tap(); navigation.navigate('Privacy'); }}>
             <Card style={styles.rowCard}>
@@ -243,6 +252,7 @@ export function HomeScreen({ navigation }: Props) {
               <ChevronRight size={17} color={colors.faint} strokeWidth={2.2} />
             </Card>
           </Pressable>
+          </Entrance>
 
         </View>
       </ScrollView>
