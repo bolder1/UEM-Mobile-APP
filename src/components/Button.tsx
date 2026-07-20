@@ -4,6 +4,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from './Text';
 import { haptics } from '../utils/haptics';
 import { radii, raisedElevation, ripple } from '../theme/platform';
+import { control, space, touch } from '../theme/spacing';
 
 interface Props {
   label: string;
@@ -14,6 +15,11 @@ interface Props {
   loading?: boolean;
   style?: ViewStyle;
   icon?: React.ReactNode;
+  /** Defaults to `label`. Set it when the visible label only makes sense next
+   *  to something on screen — "Got it" announces as "Got it", where the action
+   *  is actually "Acknowledge IT broadcast". */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -25,12 +31,14 @@ export function Button({
   loading,
   style,
   icon,
+  accessibilityLabel,
+  accessibilityHint,
 }: Props) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
-  const height = size === 'lg' ? 52 : size === 'md' ? 44 : 36;
-  const fontSize = size === 'lg' ? 15.5 : size === 'sm' ? 12.5 : 14;
+  const height = control.height[size];
+  const textSize = size === 'lg' ? 'callout' : size === 'sm' ? 'caption' : 'body';
 
   let bg = colors.primary;
   let textColor = colors.white;
@@ -135,9 +143,16 @@ export function Button({
       onPressIn={pressIn}
       onPressOut={pressOut}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      // aria-* as well: react-native-web ignores accessibilityState outright.
       accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+      aria-disabled={!!(disabled || loading)}
+      aria-busy={!!loading}
       android_ripple={ripple('rgba(255,255,255,0.16)') ?? undefined}
+      // `sm` renders at 36 for density; slop carries the target to 44 so it
+      // stays tappable at the size it looks.
+      hitSlop={touch.slopFor(height)}
       style={[{ borderRadius: radii.button, overflow: 'hidden' }, outerLayoutStyle]}
     >
       <Animated.View
@@ -160,7 +175,7 @@ export function Button({
         ) : (
           <>
             {icon}
-            <AppText variant="bodySemibold" color={textColor} style={{ fontSize }}>
+            <AppText variant="bodySemibold" size={textSize} color={textColor}>
               {label}
             </AppText>
           </>
@@ -175,7 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: space[2], // icon → label
     overflow: 'hidden',
   },
 });

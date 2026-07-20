@@ -3,18 +3,23 @@ import { View, StyleSheet, Animated, Easing, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { Check, Lock, Shield, EyeOff } from 'lucide-react-native';
+import Svg, { Circle, Path, Line } from 'react-native-svg';
+import { Briefcase, Check, Lock, Shield, EyeOff, User } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
-import { MONO } from '../../theme/typography';
+import { MONO, type as typeScale } from '../../theme/typography';
 import { AppText } from '../../components/Text';
+import { AuditLine } from '../../components/AuditLine';
 import { Button } from '../../components/Button';
-import { Entrance, GlowOrb, PressableScale, StateSwap } from '../../components/Motion';
+import { Card } from '../../components/Card';
+import { hexA } from '../../components/Glass';
+import { Entrance, MorphSwap, PressableScale, StateSwap } from '../../components/Motion';
 import { haptics } from '../../utils/haptics';
 import { useReducedMotion } from '../../utils/useReducedMotion';
-import { useAppStore, ORG_NAME, DEFAULT_USER_NAME } from '../../state/store';
+import { useAppStore, ORG_NAME, DEFAULT_USER_NAME, findAudit } from '../../state/store';
+import { EMP_ID_PREFIX } from '../../data/mockData';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { space, layout } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Pending'>;
 
@@ -26,26 +31,23 @@ const PHONE_W = 78;
 const PHONE_H = 128;
 const CHECK_SIZE = 96;
 const RING_R = 42;
+const PERF_R = 9; // radius of the ticket's edge perforation notches
 const RING_C = 2 * Math.PI * RING_R; // ≈ 264
 const CHECK_LEN = 56;
 const ROW_H = 58;
 const NODE = 24;
-const TL_PAD_TOP = 14;
-const TL_LABEL_H = 22;
-const LINE_X = 16 + NODE / 2 - 1; // card padding + node center - half line width
+// The timeline's nodes flow, but the line joining them is absolutely
+// positioned — so these must describe the card's REAL metrics or the line
+// drifts off the nodes. They are now derived from the tokens the card actually
+// renders with (Card owns its padding; the label carries the ramp's line
+// height) instead of the hand-measured 14/22 that only approximated them.
+// ROW_H and the formulas below are untouched.
+const TL_PAD_TOP = layout.cardPad;
+const TL_LABEL_H = typeScale.micro.lineHeight + layout.labelGap;
+const LINE_X = layout.cardPad + NODE / 2 - 1; // card padding + node center - half line width
 const NODE1_CY = TL_PAD_TOP + TL_LABEL_H + ROW_H / 2;
 const NODE3_CY = TL_PAD_TOP + TL_LABEL_H + ROW_H * 2 + ROW_H / 2;
 
-/** color + alpha → rgba string (theme tokens are hex). */
-function alpha(c: string, a: number): string {
-  if (c.startsWith('#') && c.length === 7) {
-    const r = parseInt(c.slice(1, 3), 16);
-    const g = parseInt(c.slice(3, 5), 16);
-    const b = parseInt(c.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${a})`;
-  }
-  return c;
-}
 
 function fmtStamp(d: Date): string {
   const p = (n: number) => ('0' + n).slice(-2);
@@ -57,18 +59,27 @@ export function ApprovalPendingScreen({ navigation }: Props) {
   const reduced = useReducedMotion();
   const approved = useAppStore((s) => s.approved);
   const form = useAppStore((s) => s.form);
+  const activity = useAppStore((s) => s.activity);
+  const openChat = useAppStore((s) => s.openChat);
+
+  // Both halves of this screen are persistent success states that never showed a
+  // receipt: the request was logged and said nothing, and "You're enrolled" — a
+  // state change made BY IT, on your device — carried no actor, no time and no
+  // way to reach the log. The line reads the real entry, so the enrolled state
+  // correctly credits IT and not you.
+  const requestAudit = findAudit(activity, 'enroll', ['Enrollment requested']);
+  const enrolledAudit = findAudit(activity, 'enroll', ['Device enrolled']);
 
   const startedApproved = useRef(approved).current;
 
   // ---- reveal choreography state ----
   const [enrolledCopy, setEnrolledCopy] = useState(startedApproved); // headline swap
   const [enrolledUI, setEnrolledUI] = useState(startedApproved); // bottom card + footer swap
-  const [particlesOn, setParticlesOn] = useState(false);
   const [revealing, setRevealing] = useState(false);
 
   // ---- animated values (initialized to final state if we mount enrolled) ----
   const end = startedApproved ? 1 : 0;
-  const worldV = useRef(new Animated.Value(end)).current; // the "weather" clock: glow, hairline, pill, node 3
+  const worldV = useRef(new Animated.Value(end)).current; // the "weather" clock: hero hairline, timeline, node 3
   const bloomV = useRef(new Animated.Value(end)).current; // radial bloom from timeline node 3
   const scanFadeV = useRef(new Animated.Value(startedApproved ? 0 : 1)).current; // phone layer out
   const ringDrawV = useRef(new Animated.Value(end)).current; // success ring snaps shut
@@ -79,11 +90,12 @@ export function ApprovalPendingScreen({ navigation }: Props) {
   const later = (fn: () => void, ms: number) => timersRef.current.push(setTimeout(fn, ms));
 
   const stamp = useMemo(() => fmtStamp(new Date()), [approved]);
-  const empId = form.empId || 'ACM-1042';
+  // Same fallback the store writes on submit — keep them one value, not two.
+  const empId = form.empId || `${EMP_ID_PREFIX}-1042`;
   const deviceName = form.name.trim() || DEFAULT_USER_NAME;
   const ownership = form.own === 'company' ? 'Company-owned' : 'Personal device';
 
-  const finishReveal = (skipped: boolean) => {
+  const finishReveal = () => {
     [worldV, bloomV, scanFadeV, ringDrawV, checkDrawV, checkScaleV].forEach((v) => v.stopAnimation());
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
@@ -93,7 +105,6 @@ export function ApprovalPendingScreen({ navigation }: Props) {
     ringDrawV.setValue(1);
     checkDrawV.setValue(1);
     checkScaleV.setValue(1);
-    if (skipped) setParticlesOn(false);
     setEnrolledCopy(true);
     setEnrolledUI(true);
     setRevealing(false);
@@ -102,7 +113,7 @@ export function ApprovalPendingScreen({ navigation }: Props) {
   const runReveal = () => {
     haptics.success();
     if (reduced) {
-      finishReveal(true);
+      finishReveal();
       return;
     }
     setRevealing(true);
@@ -118,9 +129,8 @@ export function ApprovalPendingScreen({ navigation }: Props) {
       Animated.delay(380),
       Animated.spring(checkScaleV, { toValue: 1, useNativeDriver: true, damping: 9, stiffness: 190, mass: 0.7 }),
     ]).start();
-    // 3 — headline crossfade · 4 — one particle beat · 5 — receipt springs in
+    // 3 — headline crossfade · 4 — receipt springs in
     later(() => setEnrolledCopy(true), 350);
-    later(() => setParticlesOn(true), 520);
     later(() => setEnrolledUI(true), 680);
     later(() => setRevealing(false), 1900);
   };
@@ -133,19 +143,9 @@ export function ApprovalPendingScreen({ navigation }: Props) {
   }, [approved]);
   useEffect(() => () => timersRef.current.forEach(clearTimeout), []);
 
-  const reviewingOrbOp = worldV.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-
-      {/* ambient wash — primary while reviewing, crossfades to success on enroll */}
-      <Animated.View pointerEvents="none" style={[styles.orbWrap, { opacity: reviewingOrbOp }]}>
-        <GlowOrb size={340} colors={[colors.primary, colors.primaryStrong]} opacity={isDark ? 0.34 : 0.22} style={{ top: 0, left: 0 }} />
-      </Animated.View>
-      <Animated.View pointerEvents="none" style={[styles.orbWrap, { opacity: worldV }]}>
-        <GlowOrb size={340} colors={[colors.success, colors.successStrong]} opacity={isDark ? 0.34 : 0.22} style={{ top: 0, left: 0 }} />
-      </Animated.View>
 
       <View style={styles.stage}>
         {/* ---- hero: this device, scanned → verified ---- */}
@@ -163,7 +163,7 @@ export function ApprovalPendingScreen({ navigation }: Props) {
             {/* hairline tints to success with the weather change */}
             <Animated.View
               pointerEvents="none"
-              style={[styles.heroTint, { borderColor: alpha(colors.success, 0.45), opacity: worldV }]}
+              style={[styles.heroTint, { borderColor: hexA(colors.success, 0.45), opacity: worldV }]}
             />
             <View style={styles.heroRow}>
               <View style={styles.phoneSlot}>
@@ -214,63 +214,90 @@ export function ApprovalPendingScreen({ navigation }: Props) {
                       strokeDashoffset={checkDrawV.interpolate({ inputRange: [0, 1], outputRange: [CHECK_LEN, 0] })}
                     />
                   </Svg>
-                  {particlesOn ? (
-                    <ParticleBurst
-                      palette={[colors.primary, isDark ? '#FFFFFF' : colors.primaryStrong, colors.success]}
-                    />
-                  ) : null}
+                  {/* No confetti here on purpose. This is the anxious moment in
+                      the product — the exclamation mark was already stripped
+                      from the copy, and confetti was the exclamation mark. The
+                      ring closing and the check springing shut are the reward
+                      beat; they report a state change, which confetti cannot. */}
                 </Animated.View>
               </View>
 
-              <View style={{ flex: 1, gap: 7 }}>
-                <AppText variant="bodySemibold" color={colors.muted} style={styles.micro}>
-                  This device
-                </AppText>
-                <AppText variant="displaySemibold" style={{ fontSize: 16, letterSpacing: -0.2 }} numberOfLines={1}>
-                  {deviceName}
-                </AppText>
-                <View style={[styles.monoChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.surfaceSunken, borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.border }]}>
-                  <AppText style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 0.4 }} color={colors.text3} numberOfLines={1}>
-                    ID {empId} · OS 15 · {form.own === 'company' ? 'COMPANY' : 'BYOD'}
-                  </AppText>
-                </View>
-                {/* status pill — the third tinting surface, same clock */}
-                <View style={{ height: 28, justifyContent: 'center' }}>
-                  <Animated.View style={[styles.pill, { backgroundColor: alpha(colors.primary, 0.12), borderColor: alpha(colors.primary, 0.4), opacity: reviewingOrbOp, position: 'absolute' }]}>
-                    <BreathingDot color={colors.primary} size={6} active={!approved && !reduced} />
-                    <AppText variant="bodySemibold" color={colors.primary} style={{ fontSize: 11 }}>
-                      In review
-                    </AppText>
-                  </Animated.View>
-                  <Animated.View style={[styles.pill, { backgroundColor: alpha(colors.success, 0.14), borderColor: alpha(colors.success, 0.45), opacity: worldV, position: 'absolute' }]}>
-                    <Check size={11} color={colors.success} strokeWidth={3} />
-                    <AppText variant="bodySemibold" color={colors.success} style={{ fontSize: 11 }}>
-                      Enrolled
-                    </AppText>
-                  </Animated.View>
-                </View>
+              {/* Identity while reviewing; once enrolled the receipt owns every
+                  detail, so this turns forward-looking: the work/personal
+                  boundary and what happens next. Fixed height (the phone slot
+                  already sets the card's) so the swap is a pure cross-fade. */}
+              <View style={{ flex: 1, height: PHONE_H, justifyContent: 'center' }}>
+                <StateSwap stateKey={enrolledCopy ? 'profile' : 'ident'}>
+                  {enrolledCopy ? (
+                    <View style={styles.heroCol}>
+                      <AppText variant="bodySemibold" size="micro" color={colors.muted} style={styles.micro}>
+                        What changes
+                      </AppText>
+                      <View style={{ gap: space[1] }}>
+                        <SplitRow icon={Briefcase} label="Work" value="Managed by IT" valueColor={colors.text3} />
+                        <SplitRow icon={User} label="Personal" value="Invisible to IT" valueColor={colors.success} />
+                      </View>
+                      <View style={{ borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: layout.labelGap }}>
+                        <AppText variant="bodyMedium" size="micro" color={colors.muted}>
+                          Next · work apps arrive from IT automatically
+                        </AppText>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.heroCol}>
+                      <AppText variant="bodySemibold" size="micro" color={colors.muted} style={styles.micro}>
+                        This device
+                      </AppText>
+                      <AppText variant="displaySemibold" size="callout" style={{ letterSpacing: -0.2 }} numberOfLines={1}>
+                        {deviceName}
+                      </AppText>
+                      <View style={[styles.monoChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.surfaceSunken, borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.border }]}>
+                        <AppText size="micro" style={{ fontFamily: MONO, letterSpacing: 0.4 }} color={colors.text3} numberOfLines={1}>
+                          ID {empId} · OS 15 · {form.own === 'company' ? 'COMPANY' : 'BYOD'}
+                        </AppText>
+                      </View>
+                      <View style={{ height: 28, justifyContent: 'center' }}>
+                        <View style={[styles.pill, { backgroundColor: hexA(colors.primary, 0.12), borderColor: hexA(colors.primary, 0.4) }]}>
+                          <BreathingDot color={colors.primary} size={6} active={!approved && !reduced} />
+                          <AppText variant="bodySemibold" size="micro" color={colors.primary}>
+                            In review
+                          </AppText>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </StateSwap>
               </View>
             </View>
           </View>
         </Entrance>
 
         {/* ---- headline ---- */}
-        <StateSwap stateKey={enrolledCopy ? 'done' : 'review'} style={{ alignItems: 'center', marginTop: 26 }}>
+        <StateSwap stateKey={enrolledCopy ? 'done' : 'review'} style={{ alignItems: 'center', marginTop: layout.sectionGap }}>
           <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
-            <AppText variant="display" accessibilityRole="header" style={styles.h1}>
+            <AppText variant="display" size="display" accessibilityRole="header" style={styles.h1}>
               {enrolledCopy ? 'You’re enrolled' : 'Reviewing your request'}
             </AppText>
-            <AppText variant="body" color={colors.muted} style={styles.p}>
+            <AppText variant="body" size="footnote" color={colors.muted} style={styles.p}>
               {enrolledCopy
                 ? `Your ${ORG_NAME} work profile is ready. Personal apps and data stay yours.`
                 : 'IT approves the device — never your personal data.'}
             </AppText>
+            {enrolledCopy && enrolledAudit ? (
+              <AuditLine
+                time={enrolledAudit.time}
+                actor={enrolledAudit.actor}
+                onPress={() => navigation.navigate('Activity')}
+              />
+            ) : null}
           </View>
         </StateSwap>
       </View>
 
-      {/* ---- bottom: timeline while reviewing → certificate receipt when enrolled ---- */}
-      <StateSwap stateKey={enrolledUI ? 'receipt' : 'timeline'}>
+      {/* ---- bottom: timeline while reviewing → ticket when enrolled. The two
+           states differ by ~120px, so the container morphs its height rather
+           than snapping — bleed keeps the ticket's edge notches out of the clip. ---- */}
+      <MorphSwap stateKey={enrolledUI ? 'receipt' : 'timeline'} bleed={PERF_R + 3}>
         {enrolledUI ? (
           <Certificate
             deviceName={deviceName}
@@ -278,11 +305,12 @@ export function ApprovalPendingScreen({ navigation }: Props) {
             empId={empId}
             stamp={stamp}
             success={colors.success}
+            pageBg={colors.bg}
           />
         ) : (
           <Entrance delay={120}>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <AppText variant="bodySemibold" color={colors.muted} style={[styles.micro, { marginBottom: 4 }]}>
+            <Card style={styles.card}>
+              <AppText variant="bodySemibold" size="micro" color={colors.muted} style={[styles.micro, styles.tlLabel]}>
                 Review status
               </AppText>
 
@@ -313,7 +341,7 @@ export function ApprovalPendingScreen({ navigation }: Props) {
                 sub={`Sent to ${ORG_NAME} IT`}
               />
               <TimelineRow kind="active" label="In review" sub="usually a few minutes" />
-              <TimelineRow kind="ghost" label="Device enrolled" sub="Work profile follows instantly" worldV={worldV} checkScaleV={checkScaleV} />
+              <TimelineRow kind="ghost" label="Device enrolled" sub="Work profile created on this device" worldV={worldV} checkScaleV={checkScaleV} />
 
               {/* success bloom — expands from node 3 */}
               <Animated.View
@@ -329,39 +357,55 @@ export function ApprovalPendingScreen({ navigation }: Props) {
                   },
                 ]}
               />
-            </View>
+            </Card>
             <Entrance delay={240}>
-              <AppText variant="body" color={colors.muted} style={styles.exitRamp}>
-                We’ll notify you the moment IT responds.
+              {requestAudit ? (
+                <View style={styles.auditWrap}>
+                  <AuditLine
+                    time={requestAudit.time}
+                    actor={requestAudit.actor}
+                    onPress={() => navigation.navigate('Activity')}
+                  />
+                </View>
+              ) : null}
+              <AppText variant="body" size="caption" color={colors.muted} style={styles.exitRamp}>
+                You can close the app — we’ll notify you when IT responds.
               </AppText>
             </Entrance>
           </Entrance>
         )}
-      </StateSwap>
+      </MorphSwap>
 
       {/* ---- footer ---- */}
       <View style={styles.footer}>
         <StateSwap stateKey={enrolledUI ? 'cta' : 'help'}>
           {enrolledUI ? (
             <Button
-              label="Enter workspace"
+              label="Set up permissions"
               onPress={() => {
                 haptics.tap();
                 navigation.replace('Permissions');
               }}
             />
           ) : (
+            // This was `onPress={() => haptics.tap()}` — a dead affordance, and
+            // the only one on the screen PRODUCT.md names as the anxious moment.
+            // It now opens the IT thread, the same way Profile's helpdesk row does.
             <PressableScale
-              onPress={() => haptics.tap()}
+              onPress={() => {
+                haptics.tap();
+                openChat('it');
+                navigation.navigate('ChatThread', { chatId: 'it' });
+              }}
               haptic={false}
               accessibilityRole="button"
-              accessibilityLabel="Contact IT"
+              accessibilityLabel="Contact IT helpdesk"
               style={styles.helpRow}
             >
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5 }}>
+              <AppText variant="body" size="caption" color={colors.muted}>
                 Taking longer than expected?
               </AppText>
-              <AppText variant="bodySemibold" color={colors.primary} style={{ fontSize: 12.5 }}>
+              <AppText variant="bodySemibold" size="caption" color={colors.primary}>
                 Contact IT
               </AppText>
             </PressableScale>
@@ -373,7 +417,7 @@ export function ApprovalPendingScreen({ navigation }: Props) {
       {revealing ? (
         <Pressable
           style={styles.skipLayer}
-          onPress={() => finishReveal(true)}
+          onPress={() => finishReveal()}
           accessibilityRole="button"
           accessibilityLabel="Skip animation"
         />
@@ -405,27 +449,54 @@ function PhoneScan() {
   }, [reduced, approved]);
   const screenH = PHONE_H - 14;
   const translateY = beam.interpolate({ inputRange: [0, 1], outputRange: [-48, screenH + 6] });
+
+  // A real handset reads through material, not outline: a machined frame with a
+  // rim light down one edge, glass that is darker at the bottom, and one static
+  // specular streak. Turned a few degrees so it sits IN the card rather than on
+  // it — the tilt is fixed, so it feels solid rather than drifting.
+  const frame = isDark ? '#2B323C' : '#DDE1E6';
+  const frameEdge = isDark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)';
+  const glassTop = isDark ? '#141A22' : '#EDEFF2';
+  const glassBottom = isDark ? '#080B0F' : '#DCDFE4';
+
+  // Pure decoration — the hero card's own accessibilityLabel already says what
+  // state this device is in, same precedent as the ticket's Barcode.
   return (
-    <View
-      style={[
-        styles.phone,
-        {
-          borderColor: isDark ? 'rgba(255,255,255,0.16)' : colors.borderStrong,
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.surfaceSunken,
-        },
-      ]}
-    >
-      <View style={[styles.phoneScreen, { backgroundColor: isDark ? '#0B0F14' : '#E7E9ED' }]}>
-        <View style={[styles.notch, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)' }]} />
-        <Animated.View style={{ position: 'absolute', left: 0, right: 0, height: 44, transform: [{ translateY }] }}>
+    <View style={styles.phoneWrap} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[styles.phoneShadow, { shadowColor: isDark ? '#000' : 'rgba(20,24,30,0.55)' }]} />
+      <View style={styles.phoneTilt}>
+        <View style={[styles.phone, { backgroundColor: frame, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)' }]}>
+          {/* rim light — the machined highlight along the top-left chamfer */}
           <LinearGradient
-            colors={['transparent', alpha(colors.primary, 0.5), 'transparent']}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={{ flex: 1 }}
+            pointerEvents="none"
+            colors={[frameEdge, 'transparent']}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.85, y: 0.75 }}
+            style={styles.phoneRim}
           />
-          <View style={{ position: 'absolute', top: 21, left: 0, right: 0, height: 2, backgroundColor: colors.primary, opacity: 0.85 }} />
-        </Animated.View>
+          <View style={styles.phoneScreen}>
+            <LinearGradient colors={[glassTop, glassBottom]} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+            <View style={[styles.island, { backgroundColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)' }]} />
+            <Animated.View style={{ position: 'absolute', left: 0, right: 0, height: 44, transform: [{ translateY }] }}>
+              <LinearGradient
+                colors={['transparent', hexA(colors.primary, 0.5), 'transparent']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{ flex: 1 }}
+              />
+              <View style={{ position: 'absolute', top: 21, left: 0, right: 0, height: 2, backgroundColor: colors.primary, opacity: 0.85 }} />
+            </Animated.View>
+            {/* specular streak — static; glass catches light, it doesn't shimmer */}
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.03)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.9 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        </View>
+        <View style={[styles.sideBtn, { backgroundColor: isDark ? '#39424E' : '#C6CBD2' }]} />
       </View>
     </View>
   );
@@ -499,7 +570,7 @@ function TimelineRow({
             <Check size={13} color={colors.white} strokeWidth={3.2} />
           </Animated.View>
         ) : kind === 'active' ? (
-          <View style={[styles.node, { backgroundColor: alpha(colors.primary, 0.16), borderWidth: 1, borderColor: alpha(colors.primary, 0.5) }]}>
+          <View style={[styles.node, { backgroundColor: hexA(colors.primary, 0.16), borderWidth: 1, borderColor: hexA(colors.primary, 0.5) }]}>
             <BreathingDot color={colors.primary} size={9} active={!reduced} />
           </View>
         ) : (
@@ -513,14 +584,33 @@ function TimelineRow({
           </View>
         )}
       </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <AppText variant="bodySemibold" color={ghostTextColor} style={{ fontSize: 13.5 }}>
+      <View style={{ flex: 1, gap: layout.captionGap }}>
+        <AppText variant="bodySemibold" size="footnote" color={ghostTextColor}>
           {label}
         </AppText>
-        <AppText variant="body" color={kind === 'ghost' ? colors.faint : colors.muted} style={{ fontSize: 11.5 }}>
+        <AppText variant="body" size="caption" color={kind === 'ghost' ? colors.faint : colors.muted}>
           {sub}
         </AppText>
       </View>
+    </View>
+  );
+}
+
+/** One side of the work/personal boundary, shown in the hero once enrolled. */
+function SplitRow({ icon: Icon, label, value, valueColor }: { icon: any; label: string; value: string; valueColor: string }) {
+  const { colors, isDark } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+      <View style={[styles.splitTile, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : colors.surfaceSunken, borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.border }]}>
+        <Icon size={11} color={colors.text3} strokeWidth={2} />
+      </View>
+      <AppText variant="bodySemibold" size="caption">
+        {label}
+      </AppText>
+      <View style={{ flex: 1 }} />
+      <AppText variant="bodyMedium" size="micro" color={valueColor} numberOfLines={1}>
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -566,50 +656,112 @@ function Certificate({
   empId,
   stamp,
   success,
+  pageBg,
 }: {
   deviceName: string;
   ownership: string;
   empId: string;
   stamp: string;
   success: string;
+  pageBg: string;
 }) {
   return (
     <Entrance from={22} scaleFrom={0.95}>
-      <View style={styles.cert} accessibilityLabel={`Enrollment certificate for ${deviceName}`}>
-        <AppText variant="bodySemibold" color="#9AA0A6" style={styles.micro}>
-          Enrollment receipt
-        </AppText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-          <AppText variant="displaySemibold" color="#17181A" style={{ fontSize: 16.5, letterSpacing: -0.2, flexShrink: 1 }} numberOfLines={1}>
-            {deviceName}
-          </AppText>
-          <View style={[styles.certTag, { borderColor: 'rgba(0,0,0,0.12)' }]}>
-            <AppText variant="bodySemibold" color="#5C6166" style={{ fontSize: 9.5, letterSpacing: 0.5 }}>
-              {ownership}
+      <View style={styles.ticket} accessibilityLabel={`Enrollment ticket for ${deviceName}`}>
+        {/* ---- main body: the enrollment record ---- */}
+        <View style={styles.ticketBody}>
+          <View style={styles.ticketHead}>
+            <AppText variant="bodySemibold" size="micro" color="#9AA0A6" style={styles.micro}>
+              Enrollment receipt
             </AppText>
+            <View style={styles.admitTag}>
+              <AppText size="micro" color="#5C6166" style={{ fontFamily: MONO, letterSpacing: 1.6 }}>
+                ADMIT · WORK
+              </AppText>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: layout.labelGap }}>
+            <AppText variant="displaySemibold" size="callout" color="#17181A" style={{ letterSpacing: -0.2, flexShrink: 1 }} numberOfLines={1}>
+              {deviceName}
+            </AppText>
+            <View style={[styles.certTag, { borderColor: 'rgba(0,0,0,0.12)' }]}>
+              <AppText variant="bodySemibold" size="micro" color="#5C6166" style={{ letterSpacing: 0.5 }}>
+                {ownership}
+              </AppText>
+            </View>
+          </View>
+          <AppText variant="bodyMedium" size="caption" color="#6B7178" style={{ marginTop: layout.captionGap }}>
+            {ORG_NAME}
+          </AppText>
+          <AppText size="micro" color="#8A9098" style={{ fontFamily: MONO, letterSpacing: 0.5, marginTop: layout.labelGap }}>
+            ENROLLED {stamp} · ID {empId}
+          </AppText>
+
+          <View style={{ marginTop: layout.blockGap, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)' }}>
+            <CertRow icon={Lock} label="Work profile created" success={success} />
+            {/* Was "Secure tunnel ready to connect" — a green check against a
+                tunnel that is off, with its client key still uninstalled and
+                its permission not yet granted. Every row here draws a check, so
+                every row has to be true right now. This one is. */}
+            <CertRow icon={Shield} label="Secure tunnel — you turn it on, not IT" success={success} />
+            <CertRow icon={EyeOff} label="IT sees only work — never personal" success={success} last />
           </View>
         </View>
-        <AppText variant="bodyMedium" color="#6B7178" style={{ fontSize: 12, marginTop: 2 }}>
-          {ORG_NAME}
-        </AppText>
-        <AppText color="#8A9098" style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 0.5, marginTop: 8 }}>
-          ENROLLED {stamp} · ID {empId}
-        </AppText>
 
-        <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)' }}>
-          <CertRow icon={Lock} label="Work profile created" success={success} />
-          <CertRow icon={Shield} label="Secure tunnel ready to connect" success={success} />
-          <CertRow icon={EyeOff} label="IT sees only work — never personal" success={success} last />
+        {/* ---- perforation: notches punched into both edges + dashed tear line ---- */}
+        <View style={styles.perfRow}>
+          <View style={[styles.perfHole, { left: -PERF_R, backgroundColor: pageBg }]} />
+          <View style={styles.perfLine}>
+            <Svg width="100%" height="2">
+              <Line x1="0" y1="1" x2="100%" y2="1" stroke="#C9CDD2" strokeWidth="2" strokeDasharray="2 5" strokeLinecap="round" />
+            </Svg>
+          </View>
+          <View style={[styles.perfHole, { right: -PERF_R, backgroundColor: pageBg }]} />
         </View>
 
-        {/* rotated micro-serial on the card edge */}
-        <View pointerEvents="none" style={styles.certSerial}>
-          <AppText color="#B9BEC4" style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: 2.4 }} numberOfLines={1}>
-            UEM-ENROLLED
-          </AppText>
+        {/* ---- tear-off stub: serial + scannable mark ---- */}
+        <View style={styles.ticketStub}>
+          <View style={{ flexShrink: 1 }}>
+            <AppText variant="bodySemibold" size="micro" color="#9AA0A6" style={styles.micro}>
+              Enrolled
+            </AppText>
+            <AppText size="caption" color="#3A3F45" style={{ fontFamily: MONO, letterSpacing: 0.6, marginTop: layout.captionGap }} numberOfLines={1}>
+              {empId}
+            </AppText>
+          </View>
+          <Barcode seed={`${empId}${stamp}`} />
         </View>
       </View>
     </Entrance>
+  );
+}
+
+/* A deterministic faux barcode — bar widths/gaps derived from the serial so
+ * every ticket looks unique but stable across renders. Decorative only.
+ *
+ * BAR_PITCH is the gap between two 1–3px bars — the internal pitch of a
+ * generated pattern, not a gap between two pieces of UI, so the 4px grid has
+ * nothing to say about it. The smallest grid step (4) is wider than the bars
+ * themselves and would render this as a picket fence four times too wide for
+ * the stub. It stays a named illustration constant. */
+const BAR_PITCH = 1.6;
+
+function Barcode({ seed }: { seed: string }) {
+  const bars = useMemo(() => {
+    const out: { w: number; on: boolean }[] = [];
+    for (let i = 0; i < 34; i++) {
+      const code = seed.charCodeAt(i % seed.length) * (i + 3) + i;
+      out.push({ w: (code % 3) + 1, on: code % 4 !== 0 });
+    }
+    return out;
+  }, [seed]);
+  return (
+    <View style={styles.barcode} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {bars.map((b, i) => (
+        <View key={i} style={{ width: b.w, marginLeft: BAR_PITCH, alignSelf: 'stretch', backgroundColor: b.on ? '#17181A' : 'transparent' }} />
+      ))}
+    </View>
   );
 }
 
@@ -619,7 +771,7 @@ function CertRow({ icon: Icon, label, success, last }: { icon: any; label: strin
       <View style={styles.certTile}>
         <Icon size={15} color="#5C6166" strokeWidth={2} />
       </View>
-      <AppText variant="bodyMedium" color="#3A3F45" style={{ fontSize: 13, flex: 1 }}>
+      <AppText variant="bodyMedium" size="footnote" color="#3A3F45" style={{ flex: 1 }}>
         {label}
       </AppText>
       <Check size={16} color={success} strokeWidth={2.6} />
@@ -627,105 +779,87 @@ function CertRow({ icon: Icon, label, success, last }: { icon: any; label: strin
   );
 }
 
-/* ---------------------------------------------------------------------- *
- *  One restrained particle beat — 22 flecks launch from the check and fall
- *  with fade. Transform + opacity only, ≤1.2s total, never under reduced
- *  motion (the mount site already gates it).
- * ---------------------------------------------------------------------- */
-function ParticleBurst({ palette }: { palette: string[] }) {
-  const parts = useRef(
-    Array.from({ length: 22 }, (_, i) => ({
-      v: new Animated.Value(0),
-      dx: (Math.random() * 2 - 1) * 92,
-      rise: -(22 + Math.random() * 72),
-      fall: 88 + Math.random() * 78,
-      size: 3 + Math.random() * 3.5,
-      d: 700 + Math.random() * 350,
-      delay: Math.random() * 120,
-      color: palette[i % palette.length],
-    })),
-  ).current;
-  useEffect(() => {
-    const anims = parts.map((p) =>
-      Animated.timing(p.v, { toValue: 1, duration: p.d, delay: p.delay, easing: Easing.linear, useNativeDriver: true }),
-    );
-    anims.forEach((a) => a.start());
-    return () => anims.forEach((a) => a.stop());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-      {parts.map((p, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: p.size,
-            height: p.size,
-            borderRadius: p.size / 2,
-            backgroundColor: p.color,
-            opacity: p.v.interpolate({ inputRange: [0, 0.08, 0.7, 1], outputRange: [0, 1, 0.9, 0] }),
-            transform: [
-              { translateX: p.v.interpolate({ inputRange: [0, 1], outputRange: [0, p.dx] }) },
-              { translateY: p.v.interpolate({ inputRange: [0, 0.42, 1], outputRange: [0, p.rise, p.fall] }) },
-              { scale: p.v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.7] }) },
-            ],
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 24 },
-  orbWrap: { position: 'absolute', top: -110, alignSelf: 'center', width: 340, height: 340 },
+  root: { flex: 1, paddingHorizontal: layout.gutter },
   stage: { flex: 1, justifyContent: 'center' },
 
-  hero: { borderWidth: 1, borderRadius: 24, padding: 16 },
+  hero: { borderWidth: 1, borderRadius: 24, padding: layout.cardPad },
   heroTint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 1, borderRadius: 24 },
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: layout.blockGap },
+  // Label -> its block; the split rows inside sit tighter than this, so the
+  // grouping reads in the right order.
+  heroCol: { gap: layout.labelGap },
   phoneSlot: { width: 100, height: PHONE_H, alignItems: 'center', justifyContent: 'center' },
-  phone: { width: PHONE_W, height: PHONE_H, borderRadius: 18, borderWidth: 1.5, padding: 6 },
-  phoneScreen: { flex: 1, borderRadius: 12, overflow: 'hidden', alignItems: 'center' },
-  notch: { width: 16, height: 3, borderRadius: 2, marginTop: 6 },
+  phoneWrap: { alignItems: 'center', justifyContent: 'center' },
+  // Fixed tilt (no float loop) — depth without drift.
+  phoneTilt: { transform: [{ perspective: 700 }, { rotateY: '-11deg' }, { rotateX: '4deg' }] },
+  phoneShadow: {
+    position: 'absolute', width: PHONE_W - 8, height: PHONE_H - 10, borderRadius: 18, top: 10,
+    shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: -4, height: 10 }, elevation: 10,
+    backgroundColor: '#000',
+  },
+  phone: { width: PHONE_W, height: PHONE_H, borderRadius: 19, borderWidth: 1, padding: space[1] },
+  phoneRim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 19, opacity: 0.5 },
+  phoneScreen: { flex: 1, borderRadius: 15, overflow: 'hidden', alignItems: 'center' },
+  island: { width: 20, height: 5, borderRadius: 3, marginTop: space[1] },
+  sideBtn: { position: 'absolute', right: -1.5, top: 40, width: 2.5, height: 20, borderRadius: 2 },
   checkLayer: { position: 'absolute', width: CHECK_SIZE, height: CHECK_SIZE, alignItems: 'center', justifyContent: 'center' },
-  monoChip: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3.5 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4.5, alignSelf: 'flex-start' },
+  monoChip: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 7, paddingHorizontal: space[2], paddingVertical: space[1] },
+  splitTile: { width: 20, height: 20, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: space[2], borderWidth: 1, borderRadius: 99, paddingHorizontal: space[3], paddingVertical: space[1], alignSelf: 'flex-start' },
 
-  micro: { fontSize: 10.5, letterSpacing: 1.1, textTransform: 'uppercase' },
-  h1: { fontSize: 25, letterSpacing: -0.4, textAlign: 'center' },
-  p: { fontSize: 13.5, lineHeight: 20, textAlign: 'center', maxWidth: 300, marginTop: 8 },
+  // Size comes from the ramp at each call site (`size="micro"`); this carries
+  // only the treatment.
+  micro: { letterSpacing: 1.1, textTransform: 'uppercase' },
+  h1: { letterSpacing: -0.4, textAlign: 'center' },
+  p: { textAlign: 'center', maxWidth: 300, marginTop: layout.captionGap },
 
-  card: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingTop: TL_PAD_TOP, paddingBottom: 10 },
+  // Card owns the surface, border and padding — TL_PAD_TOP is derived from the
+  // same token, which is what keeps the absolute timeline line on the nodes.
+  card: { borderRadius: 20 },
+  tlLabel: { marginBottom: layout.labelGap },
   tlLine: { position: 'absolute', left: LINE_X, width: 2, borderRadius: 1 },
-  tlRow: { height: ROW_H, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tlRow: { height: ROW_H, flexDirection: 'row', alignItems: 'center', gap: layout.rowGap },
   node: { width: NODE, height: NODE, borderRadius: NODE / 2, alignItems: 'center', justifyContent: 'center' },
   bloom: { position: 'absolute', width: 120, height: 120, borderRadius: 60, zIndex: 5 },
-  exitRamp: { fontSize: 12, textAlign: 'center', marginTop: 12 },
+  auditWrap: { alignItems: 'center', marginTop: layout.blockGap },
+  exitRamp: { textAlign: 'center', marginTop: layout.captionGap },
 
-  cert: {
+  ticket: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.10)',
     borderRadius: 20,
-    padding: 18,
-    paddingRight: 30,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
-  certTag: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  certRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10.5 },
-  certTile: { width: 30, height: 30, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
-  certSerial: {
-    position: 'absolute',
-    right: -34,
-    top: '50%',
-    width: 110,
-    alignItems: 'center',
-    transform: [{ rotate: '90deg' }],
-  },
+  ticketBody: { padding: layout.cardPad },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  admitTag: { borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)', borderRadius: 5, paddingHorizontal: space[2], paddingVertical: space[1] },
 
-  footer: { paddingTop: 18, paddingBottom: 12, minHeight: 76, justifyContent: 'center' },
-  helpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10 },
+  // perforation between body and stub — dashed line flanked by punched notches
+  perfRow: { height: 20, justifyContent: 'center' },
+  perfHole: { position: 'absolute', top: '50%', marginTop: -PERF_R, width: PERF_R * 2, height: PERF_R * 2, borderRadius: PERF_R },
+  perfLine: { marginHorizontal: layout.cardPad, height: 2, justifyContent: 'center' },
+
+  // tear-off stub — faintly tinted, rounded to match the ticket's bottom edge
+  ticketStub: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: layout.rowGap,
+    paddingHorizontal: layout.cardPad,
+    paddingTop: space[3],
+    paddingBottom: layout.cardPad,
+    backgroundColor: 'rgba(0,0,0,0.022)',
+    borderBottomLeftRadius: 19,
+    borderBottomRightRadius: 19,
+  },
+  barcode: { flexDirection: 'row', alignItems: 'stretch', height: 34 },
+  certTag: { borderWidth: 1, borderRadius: 6, paddingHorizontal: space[2], paddingVertical: space[1] },
+  certRow: { flexDirection: 'row', alignItems: 'center', gap: layout.rowGap, paddingVertical: space[3] },
+  certTile: { width: 30, height: 30, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
+
+  footer: { paddingTop: layout.blockGap, paddingBottom: layout.screenBottom, minHeight: 76, justifyContent: 'center' },
+  helpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], paddingVertical: space[3] },
   skipLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 },
 });

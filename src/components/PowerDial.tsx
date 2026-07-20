@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeProvider';
 import { haptics } from '../utils/haptics';
+import { useReducedMotion } from '../utils/useReducedMotion';
 
 export type PowerDialState = 'off' | 'connecting' | 'on';
 
@@ -12,6 +13,10 @@ interface Props {
   onPress: () => void;
   size?: number;
   connectingDurationMs?: number;
+  /** Inert while the store owns the connect window. Without this the core
+   *  Pressable stayed live under a wrapper that already announced itself as
+   *  disabled+busy, so a tap mid-connect buzzed a button that does nothing. */
+  disabled?: boolean;
   children?: React.ReactNode;
 }
 
@@ -22,8 +27,9 @@ interface Props {
  * spinner. Once on, the ring holds full and the halo breathes gently so the
  * button still feels alive at rest.
  */
-export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2200, children }: Props) {
+export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2200, disabled, children }: Props) {
   const { colors } = useTheme();
+  const reduced = useReducedMotion();
   const scale = useRef(new Animated.Value(1)).current;
   const ripple = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(state === 'on' ? 1 : 0)).current;
@@ -46,9 +52,21 @@ export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2
     return () => progress.removeListener(id);
   }, [circumference]);
 
+  // Only a real connecting→on transition is an event worth celebrating. Keyed
+  // on `state` alone this fired on every mount with the tunnel already up —
+  // navigating back to the screen buzzed success for nothing.
+  const prevState = useRef(state);
+
   useEffect(() => {
+    const was = prevState.current;
+    prevState.current = state;
     if (state === 'connecting') {
       progress.setValue(0);
+      // The charge ring is *determinate progress*, not decoration: it reports
+      // how much of the connect delay is left. Reduced motion keeps it — a
+      // ring that snapped to full while still connecting would be a lie, and
+      // it is the only progress this screen has. The decorative breathe loop
+      // below is what gets gated.
       Animated.timing(progress, {
         toValue: 1,
         duration: connectingDurationMs,
@@ -57,15 +75,16 @@ export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2
       }).start();
     } else if (state === 'on') {
       progress.setValue(1);
-      haptics.success();
+      if (was === 'connecting') haptics.success();
     } else {
-      Animated.timing(progress, { toValue: 0, duration: 260, useNativeDriver: false }).start();
+      Animated.timing(progress, { toValue: 0, duration: reduced ? 0 : 260, useNativeDriver: false }).start();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
-    if (state === 'on') {
+    if (state === 'on' && !reduced) {
       loop = Animated.loop(
         Animated.sequence([
           Animated.timing(breathe, { toValue: 1, duration: 1900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -77,7 +96,7 @@ export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2
       breathe.setValue(0);
     }
     return () => loop?.stop();
-  }, [state]);
+  }, [state, reduced]);
 
   const haloScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   const haloOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.9] });
@@ -95,8 +114,12 @@ export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2
 
   const handlePress = () => {
     haptics.tap();
-    ripple.setValue(0);
-    Animated.timing(ripple, { toValue: 1, duration: 500, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+    if (reduced) {
+      ripple.setValue(1); // rests at opacity 0 — no expanding ring
+    } else {
+      ripple.setValue(0);
+      Animated.timing(ripple, { toValue: 1, duration: 500, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+    }
     onPress();
   };
 
@@ -155,7 +178,17 @@ export function PowerDial({ state, onPress, size = 176, connectingDurationMs = 2
         </Svg>
       </View>
 
-      <Pressable onPress={handlePress} onPressIn={pressIn} onPressOut={pressOut} hitSlop={8}>
+      {/* accessible={false}: callers wrap this dial in a labelled touchable, so
+          the core must not surface as a second, unlabelled button. One control,
+          one a11y node — the wrapper's label/role/state is the one that speaks. */}
+      <Pressable
+        onPress={handlePress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        disabled={disabled}
+        accessible={false}
+        hitSlop={8}
+      >
         <Animated.View
           style={[
             styles.core,

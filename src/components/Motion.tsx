@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Animated, Easing, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { haptics } from '../utils/haptics';
 import { useReducedMotion } from '../utils/useReducedMotion';
@@ -67,6 +67,7 @@ export function PressableScale({
   scaleTo = 0.96,
   haptic = true,
   style,
+  containerStyle,
   accessibilityRole = 'button',
   accessibilityLabel,
   accessibilityState,
@@ -78,7 +79,12 @@ export function PressableScale({
   disabled?: boolean;
   scaleTo?: number;
   haptic?: boolean;
+  /** Styles the inner (scaling) view — the button's own look. */
   style?: StyleProp<ViewStyle>;
+  /** Styles the touchable itself. Layout that has to affect the PARENT — flex,
+   *  alignSelf — must go here; on `style` it lands inside the touchable and the
+   *  touchable still shrinks to fit its content. */
+  containerStyle?: StyleProp<ViewStyle>;
   accessibilityRole?: 'button' | 'link';
   accessibilityLabel?: string;
   accessibilityState?: object;
@@ -101,6 +107,7 @@ export function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       hitSlop={hitSlop}
+      style={containerStyle}
     >
       <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
     </Pressable>
@@ -300,6 +307,8 @@ export function StateSwap({
   // The key a fade-out is currently running toward — guards against ticking
   // children (timers, counters) re-triggering and interrupting the swap.
   const animatingTo = useRef<string | null>(null);
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (fallback.current) clearTimeout(fallback.current); }, []);
 
   useEffect(() => {
     if (stateKey === displayed.key) {
@@ -320,12 +329,29 @@ export function StateSwap({
     }
     if (animatingTo.current === stateKey) return; // this swap is already in flight
     animatingTo.current = stateKey;
-    Animated.timing(v, { toValue: 0, duration: duration * 0.6, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(({ finished }) => {
-      if (!finished || animatingTo.current !== stateKey) return;
+
+    // Landing the new state was gated ENTIRELY on this fade-out reporting
+    // `finished`. If the animation clock doesn't run — the app is backgrounded
+    // mid-swap, the tab is throttled — that callback never arrives, `displayed`
+    // never advances, and `animatingTo` pins the key so the effect won't retry:
+    // the screen sits on its old state forever with no path forward. That is
+    // how enrollment could strand on "Reviewing your request" after IT had
+    // already approved. The commit now happens on whichever comes first.
+    const commit = () => {
+      if (animatingTo.current !== stateKey) return; // already landed or superseded
+      if (fallback.current) { clearTimeout(fallback.current); fallback.current = null; }
       animatingTo.current = null;
       setDisplayed({ ...latest.current });
       Animated.spring(v, { toValue: 1, useNativeDriver: true, damping: 17, stiffness: 170, mass: 0.8 }).start();
-    });
+    };
+
+    if (fallback.current) clearTimeout(fallback.current);
+    fallback.current = setTimeout(commit, duration * 0.6 + 150);
+    Animated.timing(v, { toValue: 0, duration: duration * 0.6, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(
+      ({ finished }) => {
+        if (finished) commit();
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stateKey, children, reduced]);
 
@@ -340,6 +366,119 @@ export function StateSwap({
       ]}
     >
       {displayed.node}
+    </Animated.View>
+  );
+}
+
+/** StateSwap's taller sibling: cross-fades between states *and* springs the
+ *  container's height between them, so a card grows into its next shape instead
+ *  of snapping — and whatever sits below it glides rather than lurching. Reach
+ *  for this over StateSwap when the two states differ a lot in height.
+ *
+ *  Height can't ride the native driver, so it runs on the JS clock while the
+ *  fade stays native. `bleed` widens the clip box so children that overflow
+ *  sideways (a ticket's edge notches) survive the vertical clipping. */
+export function MorphSwap({
+  stateKey,
+  children,
+  style,
+  bleed = 0,
+  duration = 300,
+}: {
+  stateKey: string;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  bleed?: number;
+  duration?: number;
+}) {
+  const reduced = useReducedMotion();
+  const [displayed, setDisplayed] = useState({ key: stateKey, node: children });
+  const latest = useRef({ key: stateKey, node: children });
+  latest.current = { key: stateKey, node: children };
+  const animatingTo = useRef<string | null>(null);
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (fallback.current) clearTimeout(fallback.current); }, []);
+
+  const op = useRef(new Animated.Value(1)).current;
+  const rise = useRef(new Animated.Value(0)).current;
+  const h = useRef(new Animated.Value(0)).current;
+  // Height is only driven once we've measured the first state — until then the
+  // content sizes the container itself, so there's no zero-height flash.
+  const [sized, setSized] = useState(false);
+  const natural = useRef(0);
+
+  const onContentLayout = (e: LayoutChangeEvent) => {
+    const next = e.nativeEvent.layout.height;
+    if (!next || Math.abs(next - natural.current) < 0.5) return;
+    const first = natural.current === 0;
+    natural.current = next;
+    if (first || reduced) {
+      h.setValue(next);
+      if (first) setSized(true);
+      return;
+    }
+    Animated.spring(h, { toValue: next, useNativeDriver: false, damping: 22, stiffness: 150, mass: 0.9 }).start();
+  };
+
+  useEffect(() => {
+    if (stateKey === displayed.key) {
+      if (animatingTo.current) {
+        // A swap was abandoned mid-flight (state bounced back) — restore.
+        animatingTo.current = null;
+        Animated.spring(op, { toValue: 1, useNativeDriver: true, damping: 17, stiffness: 170, mass: 0.8 }).start();
+        Animated.spring(rise, { toValue: 0, useNativeDriver: true, damping: 17, stiffness: 170, mass: 0.8 }).start();
+      }
+      if (displayed.node !== children) setDisplayed({ key: stateKey, node: children });
+      return;
+    }
+    if (reduced) {
+      animatingTo.current = null;
+      setDisplayed({ key: stateKey, node: children });
+      op.setValue(1);
+      rise.setValue(0);
+      return;
+    }
+    if (animatingTo.current === stateKey) return; // this swap is already in flight
+    animatingTo.current = stateKey;
+
+    // Same safety net as StateSwap: never gate landing the new state solely on
+    // the fade-out reporting `finished`, or a throttled animation clock strands
+    // the swap permanently. See the comment there.
+    const commit = () => {
+      if (animatingTo.current !== stateKey) return; // already landed or superseded
+      if (fallback.current) { clearTimeout(fallback.current); fallback.current = null; }
+      animatingTo.current = null;
+      setDisplayed({ ...latest.current });
+      // New state enters from just below as the container springs to its height.
+      rise.setValue(10);
+      Animated.parallel([
+        Animated.timing(op, { toValue: 1, duration, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.spring(rise, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 160, mass: 0.8 }),
+      ]).start();
+    };
+
+    if (fallback.current) clearTimeout(fallback.current);
+    fallback.current = setTimeout(commit, duration * 0.55 + 150);
+    Animated.parallel([
+      Animated.timing(op, { toValue: 0, duration: duration * 0.55, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+      Animated.timing(rise, { toValue: -8, duration: duration * 0.55, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+    ]).start(({ finished }) => {
+      if (finished) commit();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateKey, children, reduced]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        { overflow: 'hidden', marginHorizontal: -bleed, paddingHorizontal: bleed },
+        sized ? { height: h } : null,
+      ]}
+    >
+      <Animated.View onLayout={onContentLayout} style={{ opacity: op, transform: [{ translateY: rise }] }}>
+        {displayed.node}
+      </Animated.View>
     </Animated.View>
   );
 }

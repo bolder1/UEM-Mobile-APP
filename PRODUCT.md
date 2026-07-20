@@ -16,7 +16,7 @@ It never *sells* security. It *shows* you that you're in control.
 
 ## Primary user — "Priya"
 
-- **Who.** Priya Sharma, an engineer at Acme Corp. Non-technical about MDM; technical about her own privacy. BYOD — it's *her* phone.
+- **Who.** Priya Sharma, an engineer at Xecurify. Non-technical about MDM; technical about her own privacy. BYOD — it's *her* phone.
 - **Frequency.** Opens the app in bursts: during enrollment (once, anxious), then ~2–3×/week for a specific job (install a required app, fix the tunnel, grab a policy PDF, answer IT).
 - **State of mind.** Mildly suspicious, time-poor, wants in-and-out. Not exploring — *accomplishing*. Every screen must respect that she came to do one thing.
 

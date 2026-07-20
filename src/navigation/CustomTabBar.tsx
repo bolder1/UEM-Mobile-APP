@@ -8,6 +8,7 @@ import { AppText } from '../components/Text';
 import { useAppStore, hasAnyUnread } from '../state/store';
 import { haptics } from '../utils/haptics';
 import { isAndroid, ripple } from '../theme/platform';
+import { space } from '../theme/spacing';
 
 const ICONS: Record<string, any> = {
   Home: House,
@@ -46,7 +47,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                   <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.bg }]} />
                 )}
               </View>
-              <AppText variant="bodySemibold" color={color} style={{ fontSize: 10, marginTop: 3 }}>
+              <AppText variant="bodySemibold" size="micro" color={color} style={{ marginTop: space[1] }}>
                 {route.name}
               </AppText>
             </TabButton>
@@ -109,8 +110,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -3 },
     elevation: 12,
   },
-  row: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 8 },
-  tab: { flex: 1, alignItems: 'center', paddingTop: 4 },
+  row: { flexDirection: 'row', paddingTop: space[2], paddingHorizontal: space[2] },
+  tab: { flex: 1, alignItems: 'center', paddingTop: space[1] },
   dot: {
     position: 'absolute',
     top: -2,

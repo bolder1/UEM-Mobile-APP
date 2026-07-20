@@ -3,6 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeProvider';
+import { space } from '../theme/spacing';
 
 /* ------------------------------------------------------------------ *
  *  Apple-style glass, tuned from research:
@@ -177,8 +178,10 @@ export function EmbossedDisc({
   );
 }
 
-/** hex or rgb color -> rgba string at given alpha. */
-function hexA(c: string, a: number): string {
+/** hex or rgb color -> rgba string at given alpha. The one copy: this was
+ *  independently reimplemented as a local `alpha()` in Vpn, Cast and
+ *  ApprovalPending purely because it wasn't exported. */
+export function hexA(c: string, a: number): string {
   if (c.startsWith('#') && (c.length === 7 || c.length === 4)) {
     const full = c.length === 4 ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c;
     const r = parseInt(full.slice(1, 3), 16);
@@ -197,9 +200,9 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: space[2],
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
     alignSelf: 'flex-start',
     borderRadius: 99,
   },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Chip } from './Chip';
+import { space } from '../theme/spacing';
 
 export interface FilterOption {
   key: string;
@@ -31,5 +32,7 @@ export function FilterChips({ options, value, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 8, paddingVertical: 2, paddingRight: 12 },
+  // The vertical pad is only there so a pressed chip's 0.95 scale doesn't clip
+  // against the scroller's edge — 4 is the smallest step that does the job.
+  row: { gap: space[2], paddingVertical: space[1], paddingRight: space[3] },
 });

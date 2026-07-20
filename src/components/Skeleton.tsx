@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, DimensionValue } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { radii } from '../theme/platform';
+import { space, layout, control } from '../theme/spacing';
 
 /** Pulsing placeholder block. Prefer row skeletons over a centered spinner. */
 export function Skeleton({
@@ -34,13 +35,18 @@ export function Skeleton({
   );
 }
 
-/** A generic list-row placeholder: leading tile + two text lines. */
+/** A generic list-row placeholder: leading tile + two text lines.
+ *
+ *  Geometry is deliberately borrowed from ListRow (`layout.rowPad*` + `rowGap`,
+ *  `control.tile` for the leading block) rather than eyeballed. It stands in for
+ *  a ListRow, so if the two disagree the list visibly jumps the moment it
+ *  finishes loading — which is exactly what the old 13/16/12 + 40 did. */
 export function SkeletonRow() {
   const { colors } = useTheme();
   return (
     <View style={[styles.row, { borderBottomColor: colors.hairline }]}>
-      <Skeleton width={40} height={40} radius={radii.tile} />
-      <View style={{ flex: 1, gap: 8 }}>
+      <Skeleton width={control.tile} height={control.tile} radius={radii.tile} />
+      <View style={styles.textCol}>
         <Skeleton width={'62%'} height={12} />
         <Skeleton width={'40%'} height={10} />
       </View>
@@ -50,5 +56,13 @@ export function SkeletonRow() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowGap,
+    paddingVertical: layout.rowPadV,
+    paddingHorizontal: layout.rowPadH,
+    borderBottomWidth: 1,
+  },
+  textCol: { flex: 1, gap: space[2] },
 });

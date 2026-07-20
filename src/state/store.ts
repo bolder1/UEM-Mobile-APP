@@ -31,9 +31,14 @@ import {
   INITIAL_MESSAGES,
   INITIAL_NOTIFICATIONS,
   INITIAL_UNREAD,
+  EMP_ID_PREFIX,
+  ORG_NAME,
 } from '../data/mockData';
 
-export const ORG_NAME = 'Acme Corp';
+// ORG_NAME now lives with the rest of the org's data in mockData (this file
+// imports that one, so it could never have gone the other way). Re-exported
+// here so the ~11 screens importing it from the store don't all have to change.
+export { ORG_NAME };
 export const DEFAULT_USER_NAME = 'Priya Sharma';
 
 interface AppStoreState {
@@ -220,7 +225,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       set({ formErr: true });
       return false;
     }
-    set((st) => ({ form: { ...st.form, empId: st.form.empId || 'ACM-1042' } }));
+    set((st) => ({ form: { ...st.form, empId: st.form.empId || `${EMP_ID_PREFIX}-1042` } }));
     get().logActivity('enroll', 'Enrollment requested', 'Sent to IT for approval', 'you');
     later(() => get().setApproved(true), 7000);
     return true;
@@ -259,7 +264,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       set({ vpn: 'connecting' });
       later(() => {
         set({ vpn: 'on', vpnSecs: 0, vpnDown: 186, vpnUp: 42, vpnPing: 18 });
-        get().logActivity('tunnel', 'Secure tunnel connected', 'WireGuard® · office gateway', 'you');
+        get().logActivity('tunnel', 'Secure tunnel connected', 'WireGuard® · AES-256', 'you');
         get().showToast('Secure tunnel connected', 'success', { logged: true, actor: 'you' });
         vpnInterval = setInterval(() => {
           set((st) => {
@@ -312,7 +317,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set((s) => ({ certs: { ...s.certs, [id]: 'installing' } }));
     later(() => {
       set((s) => ({ certs: { ...s.certs, [id]: 'installed' } }));
-      get().logActivity('cert', `Installed ${name}`, 'Issued by Acme Corp Certificate Authority', 'you');
+      get().logActivity('cert', `Installed ${name}`, `Issued by ${ORG_NAME} Certificate Authority`, 'you');
       get().showToast('Certificate installed', 'success', { logged: true, actor: 'you' });
     }, 1500);
   },
@@ -320,7 +325,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   ackBroadcast: () => {
     if (get().broadcastAcked) return;
     set({ broadcastAcked: true });
-    get().logActivity('broadcast', 'Acknowledged IT broadcast', 'Tunnel gateway maintenance notice', 'you');
+    get().logActivity('broadcast', 'Acknowledged IT broadcast', 'Secure tunnel maintenance notice', 'you');
     get().showToast('Broadcast acknowledged', 'success', { logged: true, actor: 'you' });
   },
 
@@ -395,12 +400,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       const actor = target.isAssist ? 'IT · Ravi Kumar' : 'you';
       get().logActivity(
         'cast',
-        'Screen share started',
+        'Screen cast started',
         target.isAssist ? `${target.name} can see your screen` : target.name,
         actor,
       );
       get().showToast(
-        target.isAssist ? 'IT can now see your screen' : 'Screen share started',
+        target.isAssist ? 'IT can now see your screen' : 'Screen cast started',
         'info',
         { logged: true, actor },
       );
@@ -424,8 +429,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       };
       const actor = s.castTarget.isAssist ? 'IT · Ravi Kumar' : 'you';
       set((st) => ({ castHistory: [entry, ...st.castHistory] }));
-      get().logActivity('cast', 'Screen share ended', `${entry.targetName} · ${entry.duration}`, actor);
-      get().showToast('Screen share ended', 'info', { logged: true, actor });
+      get().logActivity('cast', 'Screen cast ended', `${entry.targetName} · ${entry.duration}`, actor);
+      get().showToast('Screen cast ended', 'info', { logged: true, actor });
     }
     set({ cast: 'idle', castTarget: null, castSecs: 0 });
   },
@@ -475,6 +480,48 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
 export function pendingCertCount(certs: Record<string, string>) {
   return Object.values(certs).filter((v) => v === 'pending').length;
+}
+
+export interface PolicyCheck {
+  label: string;
+  pass: boolean;
+}
+
+/** The numbers behind "device meets company policy". Every check is derived
+ *  from state this app actually holds — nothing here is a literal, so the count
+ *  can fail, and a failing count is the point. "Compliant" and "100%" were both
+ *  hardcoded: they could never say anything else, which made them decoration.
+ *
+ *  Deliberately four checks and no more. A "device not rooted" or "OS up to
+ *  date" row would read well and be invented — there is no such state. */
+export function policyChecks(s: {
+  approved: boolean;
+  perms: Permissions;
+  certs: Record<string, string>;
+}): PolicyCheck[] {
+  return [
+    { label: 'Device enrolled', pass: s.approved },
+    { label: 'Work profile active', pass: s.perms.mgmt },
+    { label: 'Certificates installed', pass: Object.values(s.certs).every((v) => v === 'installed') },
+    { label: 'Secure tunnel configured', pass: s.perms.vpn },
+  ];
+}
+
+export function passedCheckCount(checks: PolicyCheck[]) {
+  return checks.filter((c) => c.pass).length;
+}
+
+/** Finds the Activity entry behind a persistent success state, so an `AuditLine`
+ *  can show the real time and actor instead of asserting "you, just now" next to
+ *  something IT did on Jun 18. Titles are matched exactly against what
+ *  `logActivity` writes — see INITIAL_ACTIVITY, whose seeds use the same form. */
+export function findAudit(
+  activity: ActivityEntry[],
+  kind: ActivityKind,
+  titles: string[],
+): ActivityEntry | undefined {
+  // `activity` is newest-first, so this is the most recent matching entry.
+  return activity.find((a) => a.kind === kind && titles.includes(a.title));
 }
 
 export function hasAnyUnread(unread: Record<string, number>) {

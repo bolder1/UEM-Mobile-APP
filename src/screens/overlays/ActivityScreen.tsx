@@ -7,6 +7,8 @@ import {
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
+import { ListRow } from '../../components/ListRow';
+import { IconTile } from '../../components/IconTile';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { SearchField } from '../../components/SearchField';
 import { FilterChips } from '../../components/FilterChips';
@@ -15,6 +17,7 @@ import { Entrance } from '../../components/Motion';
 import { useAppStore } from '../../state/store';
 import { ActivityKind } from '../../types';
 import { ColorScheme } from '../../theme/colors';
+import { space, layout, control } from '../../theme/spacing';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -55,11 +58,12 @@ export function ActivityScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
-      <View style={{ paddingHorizontal: 20 }}>
+      <View style={styles.gutter}>
         <ScreenHeader title="Activity" onBack={() => navigation.goBack()} />
       </View>
-      <View style={{ paddingHorizontal: 20, gap: 12, paddingBottom: 6 }}>
-        <SearchField value={q} onChangeText={setQ} placeholder="Search activity" />
+      {/* The controls own the whole gap down to the list they drive (blockGap). */}
+      <View style={styles.controls}>
+        <SearchField value={q} onChangeText={setQ} placeholder="Search activity" label="activity" />
         <FilterChips
           value={filter}
           onChange={(k) => setFilter(k as typeof filter)}
@@ -73,7 +77,7 @@ export function ActivityScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Entrance delay={0}>
-          <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginBottom: 10, marginHorizontal: 2 }}>
+          <AppText variant="body" size="caption" color={colors.muted2} style={styles.intro}>
             Every action taken on this device, by you or IT. Nothing here is hidden from you.
           </AppText>
         </Entrance>
@@ -87,39 +91,39 @@ export function ActivityScreen({ navigation }: Props) {
             />
           </Entrance>
         ) : (
-          <Card style={{ overflow: 'hidden' }} padded={false}>
+          <Card style={styles.list} padded={false}>
             {rows.map((a, i) => {
               const ks = kindStyle(a.kind, colors);
               return (
                 <Entrance key={a.id} delay={Math.min(i, 7) * 55}>
-                  <View
-                    style={[styles.row, i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
-                  >
-                    <View style={[styles.icon, { backgroundColor: ks.tint }]}>
-                      <ks.Icon size={16} color={ks.color} strokeWidth={2} />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                        {a.title}
-                      </AppText>
-                      <AppText variant="body" color={colors.muted} style={{ fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
-                        {a.detail}
-                      </AppText>
+                  <ListRow
+                    icon={
+                      <IconTile bg={ks.tint}>
+                        <ks.Icon size={control.icon.md} color={ks.color} strokeWidth={2} />
+                      </IconTile>
+                    }
+                    label={a.title}
+                    sub={a.detail}
+                    bordered={i < rows.length - 1}
+                    // Time and actor stack into the trailing slot: a ListRow has a
+                    // label and one sub-line, not a third meta line. Same shape the
+                    // migrated ChatList uses for its time + unread column.
+                    right={
                       <View style={styles.meta}>
-                        <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 11 }}>
+                        <AppText variant="bodySemibold" size="micro" color={colors.muted2}>
                           {a.time}
                         </AppText>
-                        <View style={[styles.metaDot, { backgroundColor: colors.faint }]} />
                         <AppText
                           variant="bodySemibold"
+                          size="micro"
                           color={a.actor.startsWith('IT') ? colors.info : colors.muted2}
-                          style={{ fontSize: 11 }}
+                          numberOfLines={1}
                         >
                           {a.actor}
                         </AppText>
                       </View>
-                    </View>
-                  </View>
+                    }
+                  />
                 </Entrance>
               );
             })}
@@ -132,9 +136,12 @@ export function ActivityScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 34 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
-  icon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
-  metaDot: { width: 3, height: 3, borderRadius: 1.5 },
+  gutter: { paddingHorizontal: layout.gutter },
+  controls: { paddingHorizontal: layout.gutter, gap: layout.cardGap, paddingBottom: layout.blockGap },
+  // SafeAreaView already owns the bottom inset — the content only adds the
+  // resting gap above it.
+  body: { paddingHorizontal: layout.gutter, paddingBottom: layout.screenBottom },
+  intro: { marginBottom: layout.blockGap },
+  list: { overflow: 'hidden' },
+  meta: { alignItems: 'flex-end', gap: space[1] },
 });

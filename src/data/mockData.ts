@@ -1,4 +1,8 @@
 import {
+  Smartphone, LayoutGrid, ShieldCheck, Activity as ActivityIcon, Tag, Wifi,
+  Image as ImageIcon, MessageSquare, Globe, Phone, KeyRound, Mail, MapPin, Camera,
+} from 'lucide-react-native';
+import {
   CatalogApp,
   CertDef,
   ChatContact,
@@ -8,7 +12,22 @@ import {
   AppInstallStatus,
   NotificationItem,
   ActivityEntry,
+  PrivacyRow,
 } from '../types';
+
+// ---- the org this device belongs to ------------------------------------
+// Lives here, with the rest of the fictional org's data, and is re-exported
+// from the store so every existing `import { ORG_NAME } from '../state/store'`
+// keeps working untouched.
+//
+// It used to live in the store — which imports THIS file, so nothing here could
+// reference it, and the org name ended up hand-typed into a dozen literals that
+// then drifted apart from each other. Interpolate these; never retype them.
+export const ORG_NAME = 'Xecurify';
+/** Employee-ID prefix, derived from the org. Used by the enrollment form's
+ *  placeholder and the fallback ID on the enrollment receipt. */
+export const EMP_ID_PREFIX = 'XEC';
+export const ORG_EMAIL_DOMAIN = 'xecurify.com';
 
 export const INITIAL_CHATS: ChatContact[] = [
   { id: 'it', name: 'IT Helpdesk', init: 'IT', color: '#0052CC', sub: 'Online · replies in ~5 min' },
@@ -40,7 +59,7 @@ export const INITIAL_MESSAGES: Record<string, { mine: boolean; text: string; t: 
     { mine: false, text: 'Standup moved to 10:30 today.', t: '8:45' },
     { mine: true, text: 'Noted, thanks.', t: '8:47' },
   ],
-  ann: [{ mine: false, text: 'VPN gateway maintenance this Saturday 2–4 AM IST.', t: 'Mon' }],
+  ann: [{ mine: false, text: 'Secure tunnel maintenance this Saturday 2–4 AM IST.', t: 'Mon' }],
 };
 
 export const INITIAL_UNREAD: Record<string, number> = { it: 2, ravi: 1 };
@@ -135,11 +154,35 @@ export const DRIVE_LABELS: Record<string, string> = {
   shared: 'Shared with me',
 };
 
+// The "what IT can / can't see" ledger — the one source of truth behind the
+// Home privacy tile, the About link and the Privacy screen's tallies. All three
+// used to hardcode "6 visible / 9 private" independently.
+export const PRIVACY_DATA: PrivacyRow[] = [
+  { label: 'Device model & OS', detail: 'iPhone · iOS version', visible: true, Icon: Smartphone },
+  { label: 'Work apps installed', detail: 'From this catalog only', visible: true, Icon: LayoutGrid },
+  { label: 'Compliance status', detail: 'Policy checks pass/fail', visible: true, Icon: ShieldCheck },
+  { label: 'Secure tunnel traffic', detail: 'Only while the tunnel is on', visible: true, Icon: Wifi },
+  { label: 'Device name', detail: 'Set during enrollment', visible: true, Icon: Tag },
+  { label: 'Enrollment status', detail: 'Enrolled since Jun 18', visible: true, Icon: ActivityIcon },
+  { label: 'Personal apps', detail: 'What you install yourself', visible: false, Icon: LayoutGrid },
+  { label: 'Photos & media', detail: 'Camera roll, screenshots', visible: false, Icon: ImageIcon },
+  { label: 'Personal messages', detail: 'SMS, WhatsApp, iMessage', visible: false, Icon: MessageSquare },
+  { label: 'Personal browsing', detail: 'History and searches', visible: false, Icon: Globe },
+  { label: 'Call history', detail: 'Who you call and when', visible: false, Icon: Phone },
+  { label: 'Passwords & accounts', detail: 'Personal logins and keychain', visible: false, Icon: KeyRound },
+  { label: 'Personal email', detail: 'Non-work inboxes', visible: false, Icon: Mail },
+  { label: 'Location (tunnel off)', detail: 'Only office check-in, if on', visible: false, Icon: MapPin },
+  { label: 'Camera & mic', detail: 'Never accessed remotely', visible: false, Icon: Camera },
+];
+
+export const PRIVACY_VISIBLE_COUNT = PRIVACY_DATA.filter((d) => d.visible).length;
+export const PRIVACY_PRIVATE_COUNT = PRIVACY_DATA.length - PRIVACY_VISIBLE_COUNT;
+
 export const APPS: CatalogApp[] = [
   {
     id: 'auth',
     name: 'Authenticator',
-    pub: 'Acme Corp IT',
+    pub: `${ORG_NAME} IT`,
     size: '18 MB',
     tile: '', // brand-tinted — see AppsScreen, which falls back to colors.primary
     init: 'A',
@@ -167,7 +210,7 @@ export const APPS: CatalogApp[] = [
     size: '187 MB',
     tile: '#4087FC',
     init: 'Z',
-    section: 'feat',
+    section: 'optional',
     description: 'Video meetings, chat and phone in one place.',
     version: '6.2.0',
     pushedDate: 'Jun 24',
@@ -179,7 +222,7 @@ export const APPS: CatalogApp[] = [
     size: '124 MB',
     tile: '#4A154B',
     init: 'S',
-    section: 'feat',
+    section: 'optional',
     description: 'Team messaging, channels and huddles.',
     version: '24.06',
     pushedDate: 'Jun 22',
@@ -193,7 +236,7 @@ export const APPS: CatalogApp[] = [
     init: 'N',
     section: 'avail',
     usesSlot: true,
-    description: 'Docs, wikis and project tracking in one workspace.',
+    description: 'Docs, wikis and project tracking in one place.',
     version: '3.13.0',
     pushedDate: 'Jun 18',
   },
@@ -238,7 +281,9 @@ export function certDefs(orgName: string): CertDef[] {
   return [
     {
       id: 'root',
-      name: orgName + ' Corporate Root CA',
+      // "Root CA", not "Corporate Root CA" — the org is Xecurify, with no
+      // "Corp" hanging off it anywhere.
+      name: orgName + ' Root CA',
       detail: 'X.509 · Expires Mar 2027',
       issuer: orgName + ' Certificate Authority',
       expires: '2027-03-18T00:00:00Z',
@@ -258,12 +303,12 @@ export function certDefs(orgName: string): CertDef[] {
     },
     {
       id: 'vpnkey',
-      name: 'VPN client key',
+      name: 'Secure tunnel client key',
       detail: 'Required for the secure tunnel',
       issuer: orgName + ' Certificate Authority',
       expires: '2048-11-23T06:38:21Z',
       serial: '19:C8:73:2D:FA:E1',
-      usedFor: 'Client identity for the WireGuard® secure tunnel',
+      usedFor: 'Client identity for the secure tunnel',
       pushedDate: 'Jun 29',
     },
   ];
@@ -275,24 +320,26 @@ export const INITIAL_CERTS: Record<string, string> = {
   vpnkey: 'pending',
 };
 
+// One status word across all three targets: two of them said "Ready" and the
+// third "Online" for the same state.
 export const CAST_TARGETS: CastTarget[] = [
   { id: 'orion', name: 'Boardroom — Orion', sub: 'Conference display · Meeting Room 4', status: 'Ready', isAssist: false },
   { id: 'nebula', name: 'Huddle — Nebula', sub: 'Conference display · Floor 3', status: 'Ready', isAssist: false },
-  { id: 'itassist', name: 'IT remote assist', sub: 'Ravi Kumar · IT Admin', status: 'Online', isAssist: true },
+  { id: 'itassist', name: 'IT Helpdesk', sub: 'Ravi Kumar · IT Admin', status: 'Ready', isAssist: true },
 ];
 
 export const INITIAL_CAST_HISTORY: CastSession[] = [
-  { id: 'cs1', targetName: 'IT remote assist — Ravi Kumar', initiatedBy: 'admin', startedAt: 'Yesterday · 4:12 PM', duration: '12m 40s', quality: 'HD' },
+  { id: 'cs1', targetName: 'IT Helpdesk — Ravi Kumar', initiatedBy: 'admin', startedAt: 'Yesterday · 4:12 PM', duration: '12m 40s', quality: 'HD' },
   { id: 'cs2', targetName: 'Boardroom — Orion', initiatedBy: 'me', startedAt: 'Jun 28 · 11:05 AM', duration: '38m 02s', quality: 'HD' },
-  { id: 'cs3', targetName: 'IT remote assist — Ravi Kumar', initiatedBy: 'admin', startedAt: 'Jun 24 · 9:47 AM', duration: '5m 18s', quality: 'SD' },
+  { id: 'cs3', targetName: 'IT Helpdesk — Ravi Kumar', initiatedBy: 'admin', startedAt: 'Jun 24 · 9:47 AM', duration: '5m 18s', quality: 'SD' },
 ];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 'n1',
     category: 'cast',
-    title: 'Remote session requested',
-    body: 'Ravi Kumar (IT Admin) wants to start a remote screen share to help with your VPN issue.',
+    title: 'Screen cast requested',
+    body: 'Ravi Kumar (IT Admin) wants to start a screen cast to help with your secure tunnel.',
     time: '2 min ago',
     read: false,
   },
@@ -308,7 +355,7 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     id: 'n3',
     category: 'broadcast',
     title: 'IT broadcast',
-    body: 'VPN gateway maintenance Saturday 2–4 AM IST. Sessions may briefly drop.',
+    body: 'Secure tunnel maintenance Saturday 2–4 AM IST. Sessions may briefly drop.',
     time: 'Yesterday',
     read: false,
   },
@@ -334,7 +381,13 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 // Activity log is populated on first open and shows both "you" and IT actors.
 export const INITIAL_ACTIVITY: ActivityEntry[] = [
   { id: 'seed-signin', kind: 'security', title: 'New device sign-in', detail: 'From Pune, IN · you reviewed it', time: '2 days ago', actor: 'you' },
-  { id: 'seed-root', kind: 'cert', title: 'Installed Corporate Root CA', detail: 'Acme Corp Certificate Authority', time: 'Jun 18', actor: 'IT · Ravi Kumar' },
-  { id: 'seed-auth', kind: 'app', title: 'Installed Authenticator', detail: 'Acme Corp IT · required app', time: 'Jun 18', actor: 'IT · Ravi Kumar' },
+  // Titles match `Installed ${cert.name}` / `Installed ${app.name}` exactly —
+  // the certs and apps screens look their audit line up by this title, and the
+  // log named the same cert differently from the screen that installs it.
+  // `title` is built from ORG_NAME rather than retyped: it has to stay
+  // byte-identical to `Installed ${cert.name}` from certDefs(ORG_NAME) above, or
+  // findAudit stops resolving and the cert's audit line silently disappears.
+  { id: 'seed-root', kind: 'cert', title: `Installed ${ORG_NAME} Root CA`, detail: `${ORG_NAME} Certificate Authority`, time: 'Jun 18', actor: 'IT · Ravi Kumar' },
+  { id: 'seed-auth', kind: 'app', title: 'Installed Authenticator', detail: `${ORG_NAME} IT · required app`, time: 'Jun 18', actor: 'IT · Ravi Kumar' },
   { id: 'seed-enroll', kind: 'enroll', title: 'Device enrolled', detail: 'Personal (BYOD) · work profile created', time: 'Jun 18', actor: 'you' },
 ];

@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react-native';
+
 export type Ownership = 'personal' | 'company';
 
 export interface EnrollmentForm {
@@ -32,7 +34,7 @@ export interface CatalogApp {
   size: string;
   tile: string;
   init: string;
-  section: 'req' | 'feat' | 'avail';
+  section: 'req' | 'optional' | 'avail';
   usesSlot?: boolean;
   description: string;
   version: string;
@@ -83,6 +85,16 @@ export interface FileNode {
   size?: string;
   date: string;
   itemCount?: number;
+}
+
+// One row of the "what IT can / can't see" ledger. It lives in mockData so the
+// Home tile, About and Privacy all count the same list — three hardcoded copies
+// of "6 visible / 9 private" could disagree, and did.
+export interface PrivacyRow {
+  label: string;
+  detail: string;
+  visible: boolean;
+  Icon: LucideIcon;
 }
 
 export type CastStatus = 'idle' | 'connecting' | 'live';

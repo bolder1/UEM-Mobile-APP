@@ -1,23 +1,34 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BadgeCheck, X, ShieldCheck, UserCog, Download, Check } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
+import { AuditLine } from '../../components/AuditLine';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { IconButton } from '../../components/IconButton';
+import { IconTile } from '../../components/IconTile';
+import { StatusDot } from '../../components/StatusDot';
+import { InfoNote } from '../../components/InfoNote';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BottomSheet } from '../../components/BottomSheet';
 import { Spinner } from '../../components/Animations';
 import { Entrance, PressableScale, CountUp } from '../../components/Motion';
-import { useAppStore, ORG_NAME } from '../../state/store';
+import { useAppStore, ORG_NAME, findAudit } from '../../state/store';
+import { navigate } from '../../navigation/navigationRef';
 import { certDefs } from '../../data/mockData';
 import { CertDef } from '../../types';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { radii } from '../../theme/platform';
+import { space, layout, control } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Certs'>;
+
+// The non-interactive twin of the row's IconButton — same footprint so the
+// installed/installing states don't shift the row.
+const ACTION_SLOT = 44;
 
 function fmtExpiry(iso: string) {
   const d = new Date(iso);
@@ -26,6 +37,7 @@ function fmtExpiry(iso: string) {
 
 export function CertsScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const certs = useAppStore((s) => s.certs);
   const installCert = useAppStore((s) => s.installCert);
   const defs = certDefs(ORG_NAME);
@@ -36,39 +48,49 @@ export function CertsScreen({ navigation }: Props) {
   const pendingCount = defs.filter((c) => certs[c.id] === 'pending').length;
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
-      <View style={{ paddingHorizontal: 20 }}>
-        <ScreenHeader title="Certificates" onBack={() => navigation.goBack()} />
+    // Bottom is owned by the scroll's own padding (inset + screenBottom) rather
+    // than by a safe-area edge, so content can scroll under the home indicator.
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
+      {/* One gutter mechanism: padding on the container. The banner used to set
+          its own marginHorizontal while the scroll used paddingHorizontal. */}
+      <View style={styles.gutter}>
+        {/* The subtitle is the header's own caption — ScreenHeader's `sub` slot
+            is what it's for, and it kills the old marginHorizontal: 24. */}
+        <ScreenHeader
+          title="Certificates"
+          sub={`Pushed by ${ORG_NAME} IT. Required for Wi-Fi and the secure tunnel.`}
+          onBack={() => navigation.goBack()}
+        />
+
+        {pendingCount > 0 && (
+          <Entrance delay={0}>
+            <View style={[styles.bannerRow, { backgroundColor: colors.amberTint }]}>
+              <ShieldCheck size={control.icon.md} color={colors.amberStrong} strokeWidth={2.2} />
+              <AppText variant="bodySemibold" size="caption" color={colors.amberStrong} style={styles.bannerText}>
+                {pendingCount === 1 ? (
+                  '1 certificate needs your action to keep this device compliant.'
+                ) : (
+                  <>
+                    <CountUp value={pendingCount}>
+                      {(d) => (
+                        <AppText variant="bodySemibold" size="caption" color={colors.amberStrong}>
+                          {d}
+                        </AppText>
+                      )}
+                    </CountUp>
+                    {' certificates need your action to keep this device compliant.'}
+                  </>
+                )}
+              </AppText>
+            </View>
+          </Entrance>
+        )}
       </View>
-      <AppText variant="body" color={colors.muted} style={styles.subtitle}>
-        Pushed by {ORG_NAME} IT. Required for Wi-Fi and the secure tunnel.
-      </AppText>
 
-      {pendingCount > 0 && (
-        <Entrance delay={0}>
-          <View style={[styles.bannerRow, { backgroundColor: colors.amberTint }]}>
-            <ShieldCheck size={16} color={colors.amberStrong} strokeWidth={2.2} />
-            <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 12, flex: 1 }}>
-              {pendingCount === 1 ? (
-                '1 certificate needs your action to keep this device compliant.'
-              ) : (
-                <>
-                  <CountUp value={pendingCount}>
-                    {(d) => (
-                      <AppText variant="bodySemibold" color={colors.amberStrong} style={{ fontSize: 12 }}>
-                        {d}
-                      </AppText>
-                    )}
-                  </CountUp>
-                  {' certificates need your action to keep this device compliant.'}
-                </>
-              )}
-            </AppText>
-          </View>
-        </Entrance>
-      )}
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + layout.screenBottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         {waiting.length > 0 && (
           <Entrance delay={80}>
             <SectionTitle badge="ACTION">Waiting for you</SectionTitle>
@@ -82,13 +104,13 @@ export function CertsScreen({ navigation }: Props) {
           </Entrance>
         )}
         <Entrance delay={220}>
-          <AppText variant="body" color={colors.muted2} style={styles.footNote}>
+          <AppText variant="body" size="caption" color={colors.muted2} style={styles.footNote}>
             Installing a certificate is logged and visible to your admin.
           </AppText>
         </Entrance>
       </ScrollView>
 
-      <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
+      <BottomSheet visible={!!selected} onClose={() => setSelected(null)} accessibilityLabel="Certificate details">
         {selected && (
           <CertDetail
             cert={selected}
@@ -106,16 +128,12 @@ function SectionTitle({ children, badge }: { children: React.ReactNode; badge?: 
   const { colors } = useTheme();
   return (
     <View style={styles.sectionTitleRow}>
-      <AppText
-        variant="bodyBold"
-        color={colors.muted2}
-        style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}
-      >
+      <AppText variant="bodyBold" size="micro" color={colors.muted2} style={styles.sectionTitleText}>
         {children}
       </AppText>
       {badge && (
         <View style={[styles.policyBadge, { backgroundColor: colors.amberTint }]}>
-          <AppText variant="bodyBold" color={colors.amberStrong} style={{ fontSize: 10, letterSpacing: 0.3 }}>
+          <AppText variant="bodyBold" size="micro" color={colors.amberStrong} style={styles.policyBadgeText}>
             {badge}
           </AppText>
         </View>
@@ -139,7 +157,7 @@ function CertSection({
 }) {
   const { colors } = useTheme();
   return (
-    <Card style={[styles.sectionCard, !last && { marginBottom: 18 }]} padded={false}>
+    <Card style={[styles.sectionCard, !last && { marginBottom: layout.sectionGap }]} padded={false}>
       {certs.map((c, i) => {
         const status = statuses[c.id];
         const installed = status === 'installed';
@@ -156,29 +174,28 @@ function CertSection({
             >
               {/* Info area and action button are siblings, not nested Pressables —
                   nesting them would let a tap on "Install" bubble up and also
-                  trigger the row's open-detail handler. */}
-              <View style={{ flex: 1, minWidth: 0 }}>
+                  trigger the row's open-detail handler. This row carries a third
+                  line (the status), which is why it isn't a <ListRow>; its
+                  geometry is the ListRow tokens applied by hand. */}
+              <View style={styles.rowInfoWrap}>
                 <PressableScale
                   onPress={() => onOpenDetail(c)}
                   style={styles.rowInfo}
                   accessibilityLabel={`${c.name} details`}
                 >
-                  <View style={[styles.icon, { backgroundColor: tileBg }]}>
-                    <BadgeCheck size={19} color={tileC} strokeWidth={2} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13.5 }}>
+                  <IconTile bg={tileBg}>
+                    <BadgeCheck size={control.icon.lg} color={tileC} strokeWidth={2} />
+                  </IconTile>
+                  <View style={styles.rowText}>
+                    <AppText variant="bodySemibold" size="footnote" numberOfLines={1}>
                       {c.name}
                     </AppText>
-                    <AppText variant="body" color={colors.muted2} numberOfLines={1} style={{ fontSize: 11.5, marginTop: 2 }}>
+                    <AppText variant="body" size="caption" color={colors.muted2} numberOfLines={1}>
                       {c.detail} · Pushed {c.pushedDate}
                     </AppText>
-                    <View style={styles.statusRow}>
-                      <View style={[styles.statusDot, { backgroundColor: stDot }]} />
-                      <AppText variant="bodySemibold" color={stC} style={{ fontSize: 11 }}>
-                        {stLabel}
-                      </AppText>
-                    </View>
+                    {/* Was a bare 6px dot plus a separate label. StatusDot renders
+                        both, so the status can never go anonymous. */}
+                    <StatusDot color={stDot} label={stLabel} labelColor={stC} />
                   </View>
                 </PressableScale>
               </View>
@@ -199,7 +216,7 @@ function CertActionButton({ status, name, onInstall }: { status: string; name: s
         variant="primary"
         onPress={onInstall}
         accessibilityLabel={`Install ${name}`}
-        icon={<Download size={19} color={colors.white} strokeWidth={2.2} />}
+        icon={<Download size={control.icon.lg} color={colors.white} strokeWidth={2.2} />}
       />
     );
   if (status === 'installing')
@@ -212,7 +229,7 @@ function CertActionButton({ status, name, onInstall }: { status: string; name: s
     );
   return (
     <View accessible accessibilityLabel={`${name} installed`} style={[styles.statusSlot, { backgroundColor: colors.successTint }]}>
-      <Check size={19} color={colors.success} strokeWidth={2.6} />
+      <Check size={control.icon.lg} color={colors.success} strokeWidth={2.6} />
     </View>
   );
 }
@@ -229,32 +246,37 @@ function CertDetail({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const activity = useAppStore((s) => s.activity);
   const installed = status === 'installed';
   const installing = status === 'installing';
   const statusLabel = installed ? 'Installed' : installing ? 'Installing…' : 'Pending';
   const statusColor = installed ? colors.success : installing ? colors.primary : colors.amberStrong;
+  // PRODUCT.md: provenance on every credential. The sheet already shows issuer,
+  // serial and expiry; this adds who put it here and when — the toast that said
+  // so vanished 4.5 seconds after the install.
+  const installAudit = findAudit(activity, 'cert', [`Installed ${cert.name}`]);
 
   return (
     <View>
       <View style={styles.sheetHeader}>
-        <View style={[styles.icon, { backgroundColor: installed ? colors.successTint : colors.amberTint }]}>
-          <BadgeCheck size={20} color={installed ? colors.success : colors.amber} strokeWidth={2} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <AppText variant="bodySemibold" numberOfLines={2} style={{ fontSize: 14.5 }}>
+        <IconTile bg={installed ? colors.successTint : colors.amberTint}>
+          <BadgeCheck size={control.icon.lg} color={installed ? colors.success : colors.amber} strokeWidth={2} />
+        </IconTile>
+        <View style={styles.sheetTitleCol}>
+          <AppText variant="bodySemibold" size="body" numberOfLines={2}>
             {cert.name}
           </AppText>
-          <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
+          <AppText variant="body" size="caption" color={colors.muted}>
             X.509 certificate
           </AppText>
         </View>
-        <PressableScale
+        <IconButton
+          icon={<X size={control.icon.md} color={colors.text3} strokeWidth={2.4} />}
           onPress={onClose}
           accessibilityLabel="Close"
-          style={[styles.closeBtn, { backgroundColor: colors.surfaceSunken }]}
-        >
-          <X size={14} color={colors.text3} strokeWidth={2.4} />
-        </PressableScale>
+          variant="neutral"
+          size={control.height.sm}
+        />
       </View>
 
       <View style={[styles.statsRow, { borderTopColor: colors.hairline, borderBottomColor: colors.hairline }]}>
@@ -266,42 +288,51 @@ function CertDetail({
       </View>
 
       <View style={styles.sheetBody}>
-        <AppText variant="body" color={colors.text2} style={{ fontSize: 13, lineHeight: 19 }}>
+        <AppText variant="body" size="footnote" color={colors.text2}>
           {cert.usedFor}
         </AppText>
-        <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 8 }}>
+        <AppText variant="body" size="caption" color={colors.muted2} style={styles.metaFirst}>
           Issuer: {cert.issuer}
         </AppText>
-        <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 2 }}>
+        <AppText variant="body" size="caption" color={colors.muted2} style={styles.metaNext}>
           Serial: {cert.serial}
         </AppText>
 
-        <View style={{ marginTop: 20 }}>
+        <View style={styles.actionBlock}>
           {status === 'pending' && <Button label="Install certificate" onPress={onInstall} />}
           {installing && (
             <View style={styles.installingRow}>
               <Spinner>
-                <BadgeCheck size={16} color={colors.primary} strokeWidth={2.4} />
+                <BadgeCheck size={control.icon.md} color={colors.primary} strokeWidth={2.4} />
               </Spinner>
-              <AppText variant="bodySemibold" color={colors.primary} style={{ fontSize: 13 }}>
+              <AppText variant="bodySemibold" size="footnote" color={colors.primary}>
                 Installing…
               </AppText>
             </View>
           )}
           {installed && (
-            <View style={styles.installingRow}>
-              <BadgeCheck size={16} color={colors.success} strokeWidth={2.4} />
-              <AppText variant="bodySemibold" color={colors.success} style={{ fontSize: 13 }}>
-                Installed on this device
-              </AppText>
+            <View>
+              <View style={styles.installingRow}>
+                <BadgeCheck size={control.icon.md} color={colors.success} strokeWidth={2.4} />
+                <AppText variant="bodySemibold" size="footnote" color={colors.success}>
+                  Installed on this device
+                </AppText>
+              </View>
+              {installAudit ? (
+                <View style={styles.auditWrap}>
+                  <AuditLine
+                    time={installAudit.time}
+                    actor={installAudit.actor}
+                    onPress={() => navigate('Activity')}
+                  />
+                </View>
+              ) : null}
             </View>
           )}
-          <View style={styles.pushedByRow}>
-            <UserCog size={13} color={colors.muted2} strokeWidth={2} />
-            <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5 }}>
-              Pushed by {ORG_NAME} IT
-            </AppText>
-          </View>
+          <InfoNote
+            text={`Pushed by ${ORG_NAME} IT`}
+            icon={<UserCog size={12} color={colors.muted2} strokeWidth={2} />}
+          />
         </View>
       </View>
     </View>
@@ -312,10 +343,10 @@ function DetailStat({ value, label, color }: { value: string; label: string; col
   const { colors } = useTheme();
   return (
     <View style={styles.detailStat}>
-      <AppText variant="displaySemibold" color={color} style={{ fontSize: 13.5 }} numberOfLines={1}>
+      <AppText variant="displaySemibold" size="footnote" color={color} numberOfLines={1}>
         {value}
       </AppText>
-      <AppText variant="body" color={colors.muted2} style={{ fontSize: 10.5, marginTop: 2 }}>
+      <AppText variant="body" size="micro" color={colors.muted2}>
         {label}
       </AppText>
     </View>
@@ -324,25 +355,60 @@ function DetailStat({ value, label, color }: { value: string; label: string; col
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  subtitle: { fontSize: 12.5, lineHeight: 18, marginHorizontal: 24, marginBottom: 12 },
-  bannerRow: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 12, padding: 12, marginHorizontal: 20, marginBottom: 14 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 24 },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, marginHorizontal: 4 },
-  policyBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  gutter: { paddingHorizontal: layout.gutter },
+  bannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    borderRadius: radii.tile,
+    padding: space[3],
+    marginBottom: layout.blockGap,
+  },
+  bannerText: { flex: 1 },
+  scroll: { paddingHorizontal: layout.gutter },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginBottom: layout.labelGap },
+  sectionTitleText: { letterSpacing: 1, textTransform: 'uppercase' },
+  policyBadge: { borderRadius: space[2], paddingHorizontal: space[2], paddingVertical: space[1] },
+  policyBadgeText: { letterSpacing: 0.3 },
   sectionCard: { overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
-  rowInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 13, minWidth: 0 },
-  icon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusSlot: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  footNote: { fontSize: 11.5, lineHeight: 17, marginTop: 4, marginHorizontal: 4 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 8 },
-  closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderBottomWidth: 1 },
-  statDivider: { width: 1, height: 30 },
-  detailStat: { flex: 1, alignItems: 'center' },
-  sheetBody: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
-  installingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, justifyContent: 'center' },
-  pushedByRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  // ListRow's geometry, applied by hand — this row has a third line, so it
+  // can't be a ListRow, but it must not invent its own paddings either.
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowGap,
+    paddingVertical: layout.rowPadV,
+    paddingHorizontal: layout.rowPadH,
+  },
+  rowInfoWrap: { flex: 1, minWidth: 0 },
+  rowInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: layout.rowGap, minWidth: 0 },
+  rowText: { flex: 1, minWidth: 0, gap: layout.captionGap },
+  statusSlot: {
+    width: ACTION_SLOT,
+    height: ACTION_SLOT,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  footNote: { marginTop: layout.blockGap },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    paddingHorizontal: layout.sheetPad,
+    paddingBottom: layout.cardGap,
+    paddingTop: space[2],
+  },
+  sheetTitleCol: { flex: 1, minWidth: 0, gap: layout.captionGap },
+  statsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: layout.cardPad, borderTopWidth: 1, borderBottomWidth: 1 },
+  statDivider: { width: 1, height: space[8] },
+  detailStat: { flex: 1, alignItems: 'center', gap: layout.captionGap },
+  // Bottom pad now comes from BottomSheet (inset + screenBottom).
+  sheetBody: { paddingHorizontal: layout.sheetPad, paddingTop: layout.cardPad },
+  metaFirst: { marginTop: layout.labelGap },
+  metaNext: { marginTop: layout.captionGap },
+  actionBlock: { marginTop: layout.blockGap },
+  installingRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: layout.captionGap, justifyContent: 'center' },
+  auditWrap: { alignItems: 'center' },
 });

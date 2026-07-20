@@ -148,11 +148,18 @@ const BRAND_PALETTES: Record<BrandTheme, { light: BrandTokens; dark: BrandTokens
       primaryTint: '#FBE7DC',
       heroBg: '#17181A',
     },
+    // Dark mode gets a deliberately calmer orange. The light accent (#EB5424) is
+    // 84% saturated; a naive dark variant lands at 100% saturation, and fully
+    // saturated warm hues on a near-black canvas halate — the glow bleeds and
+    // the eye can't settle. So dark drops saturation (~77%) rather than just
+    // lightening the hue, and the hero slab is pulled back from brown towards a
+    // warm ink so the brand accents on top of it stay the loudest thing.
+    // Checked, not eyeballed: primary holds 6.5:1 on bg and 6.0:1 on surface.
     dark: {
-      primary: '#FF8A5B',
-      primaryStrong: '#FFAA85',
+      primary: '#E8794F',
+      primaryStrong: '#F09B78',
       primaryTint: '#3A2013',
-      heroBg: '#3D1F0E',
+      heroBg: '#2B1C15',
     },
   },
   blue: {

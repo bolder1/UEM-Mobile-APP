@@ -7,10 +7,12 @@ import { AppText } from '../../components/Text';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { IconTile } from '../../components/IconTile';
+import { ListRow } from '../../components/ListRow';
 import { ToggleSwitch } from '../../components/ToggleSwitch';
 import { useAppStore } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { space, layout, control } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
@@ -26,13 +28,22 @@ export function PermissionsScreen({ navigation }: Props) {
     if (requiredOk) navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
   };
 
+  // Grants the three required permissions only. Location is deliberately left
+  // out: it is optional, "off by default" is a promise this screen makes, and
+  // setPerm audit-logs it — a bulk accept must not opt you into being seen.
+  const allowRequired = () => {
+    setPerm('notif', true);
+    setPerm('vpn', true);
+    setPerm('mgmt', true);
+  };
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <AppText variant="display" style={styles.title}>
+        <AppText variant="display" size="display" accessibilityRole="header" style={styles.title}>
           A few permissions
         </AppText>
-        <AppText variant="body" color={colors.text3} style={styles.subtitle}>
+        <AppText variant="body" size="footnote" color={colors.text3}>
           Each says exactly why it&rsquo;s needed. Turn on the three required ones to continue — change any of
           them later in Profile.
         </AppText>
@@ -41,7 +52,7 @@ export function PermissionsScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.list}>
         <Card style={{ overflow: 'hidden' }} padded={false}>
           <PermRow
-            icon={<Bell size={19} color={colors.text3} strokeWidth={2} />}
+            icon={<Bell size={control.icon.lg} color={colors.text3} strokeWidth={2} />}
             title="Notifications"
             required
             desc="IT broadcasts and required actions reach you."
@@ -50,7 +61,7 @@ export function PermissionsScreen({ navigation }: Props) {
             bordered
           />
           <PermRow
-            icon={<Lock size={19} color={colors.text3} strokeWidth={2} />}
+            icon={<Lock size={control.icon.lg} color={colors.text3} strokeWidth={2} />}
             title="Secure tunnel"
             required
             desc="Lets the app create the WireGuard® tunnel to work."
@@ -59,7 +70,7 @@ export function PermissionsScreen({ navigation }: Props) {
             bordered
           />
           <PermRow
-            icon={<Smartphone size={19} color={colors.text3} strokeWidth={2} />}
+            icon={<Smartphone size={control.icon.lg} color={colors.text3} strokeWidth={2} />}
             title="Device management"
             required
             desc="Creates the work profile for apps and policy."
@@ -68,7 +79,7 @@ export function PermissionsScreen({ navigation }: Props) {
             bordered
           />
           <PermRow
-            icon={<MapPin size={19} color={colors.text3} strokeWidth={2} />}
+            icon={<MapPin size={control.icon.lg} color={colors.text3} strokeWidth={2} />}
             title="Location"
             desc="Office geofence check-in only. Off by default."
             granted={perms.loc}
@@ -76,14 +87,24 @@ export function PermissionsScreen({ navigation }: Props) {
           />
         </Card>
 
-        <AppText variant="body" color={colors.muted2} style={styles.footNote}>
+        <AppText variant="body" size="caption" color={colors.muted2} style={styles.footNote}>
           See exactly what your company can and can&rsquo;t see anytime from Profile → Privacy.
         </AppText>
       </ScrollView>
 
       <View style={styles.footer}>
+        {/* One-tap way past the gate — drops out once there's nothing left to grant. */}
+        {!requiredOk && (
+          <Button
+            label="Allow all required"
+            variant="ghost"
+            size="md"
+            onPress={allowRequired}
+            style={{ marginBottom: space[2] }}
+          />
+        )}
         <Button
-          label={requiredOk ? 'Continue to your workspace' : `Turn on ${3 - grantedCount} more to continue`}
+          label={requiredOk ? 'Continue' : `Turn on ${3 - grantedCount} more to continue`}
           onPress={enter}
           disabled={!requiredOk}
         />
@@ -111,45 +132,59 @@ function PermRow({
 }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.permRow, bordered && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}>
-      <View style={[styles.tile, { backgroundColor: colors.surfaceSunken }]}>{icon}</View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={styles.titleRow}>
-          <AppText variant="bodySemibold" style={{ fontSize: 14 }}>
-            {title}
-          </AppText>
+    <ListRow
+      icon={<IconTile bg={colors.surfaceSunken}>{icon}</IconTile>}
+      label={title}
+      sub={desc}
+      bordered={bordered}
+      // The switch is this row's only action, so it stays its own a11y node
+      // rather than something a tappable row would swallow.
+      rightInteractive
+      right={
+        <View style={styles.trailing}>
           {required ? (
             <View style={[styles.reqPill, { backgroundColor: colors.primaryTint }]}>
               <Star size={9} color={colors.primaryStrong} strokeWidth={2.6} fill={colors.primaryStrong} />
-              <AppText variant="bodyBold" color={colors.primaryStrong} style={{ fontSize: 9.5, letterSpacing: 0.2 }}>
+              <AppText variant="bodyBold" size="micro" color={colors.primaryStrong} style={{ letterSpacing: 0.2 }}>
                 Required
               </AppText>
             </View>
           ) : (
-            <AppText variant="bodySemibold" color={colors.muted2} style={{ fontSize: 10.5 }}>
+            <AppText variant="bodySemibold" size="micro" color={colors.muted2}>
               Optional
             </AppText>
           )}
+          {/* All four switches announced as an anonymous "switch, on" before
+              this — you could not tell which permission you had just granted. */}
+          <ToggleSwitch
+            value={granted}
+            onChange={onChange}
+            onColor={required ? colors.primary : colors.success}
+            label={title}
+            hint={desc}
+          />
         </View>
-        <AppText variant="body" color={colors.muted} style={{ fontSize: 12, lineHeight: 17, marginTop: 2 }}>
-          {desc}
-        </AppText>
-      </View>
-      <ToggleSwitch value={granted} onChange={onChange} onColor={required ? colors.primary : colors.success} />
-    </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
-  title: { fontSize: 23, marginBottom: 6 },
-  subtitle: { fontSize: 13, lineHeight: 19 },
-  list: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
-  permRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, paddingHorizontal: 14 },
-  tile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flex: 0 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  reqPill: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2.5 },
-  footNote: { fontSize: 11.5, lineHeight: 17, marginTop: 14, marginHorizontal: 6 },
-  footer: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 20 },
+  // One gutter, app-wide: header, list and footer all sit on `layout.gutter`.
+  // This screen used to run its own 24.
+  header: { paddingHorizontal: layout.gutter, paddingTop: layout.screenTop },
+  title: { marginBottom: layout.captionGap },
+  list: { paddingHorizontal: layout.gutter, paddingTop: layout.blockGap, paddingBottom: layout.labelGap },
+  trailing: { alignItems: 'flex-end', gap: space[2] },
+  reqPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[1],
+    borderRadius: 99,
+    paddingHorizontal: space[2],
+    paddingVertical: space[1],
+  },
+  footNote: { marginTop: layout.blockGap },
+  footer: { paddingHorizontal: layout.gutter, paddingTop: layout.cardGap, paddingBottom: layout.screenBottom },
 });

@@ -2,16 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, Animated, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  X, House, LayoutGrid, MessageCircle, Lock, Cast, ShieldCheck, Folder, Activity,
-  Bell, Palette, EyeOff, Info, ChevronRight, Sun, Moon, SunMoon,
+  X, House, LayoutGrid, MessageCircle, Lock, Cast, ShieldCheck, Folder,
+  ChevronRight, Sun, Moon, SunMoon,
 } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from './Text';
+import { ListRow } from './ListRow';
+import { StatusDot } from './StatusDot';
+import { Avatar } from './Avatar';
+import { IconButton } from './IconButton';
 import {
-  useAppStore, ORG_NAME, DEFAULT_USER_NAME, pendingCertCount, unreadNotifCount, hasAnyUnread,
+  useAppStore, ORG_NAME, DEFAULT_USER_NAME, pendingCertCount, hasAnyUnread,
 } from '../state/store';
 import { haptics } from '../utils/haptics';
 import { navigate } from '../navigation/navigationRef';
+import { space, layout, touch, control } from '../theme/spacing';
 
 type Item = { label: string; icon: any; route: string; tab?: boolean; badge?: number; dot?: boolean };
 
@@ -31,7 +36,6 @@ export function Drawer() {
   const certs = useAppStore((s) => s.certs);
   const appSt = useAppStore((s) => s.appSt);
   const unread = useAppStore((s) => s.unread);
-  const notifications = useAppStore((s) => s.notifications);
   const activeRoute = useAppStore((s) => s.activeRoute);
 
   const [mounted, setMounted] = useState(false);
@@ -60,7 +64,6 @@ export function Drawer() {
   const initials = userName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const certsPending = pendingCertCount(certs);
   const appsToAct = Object.values(appSt).filter((s) => s === 'available' || s === 'update').length;
-  const unreadNotifs = unreadNotifCount(notifications);
 
   const go = (item: Item) => {
     haptics.tap();
@@ -74,48 +77,47 @@ export function Drawer() {
     { label: 'Apps', icon: LayoutGrid, route: 'Apps', tab: true, badge: appsToAct },
     { label: 'Chat', icon: MessageCircle, route: 'Chat', tab: true, dot: hasAnyUnread(unread) },
   ];
+  // Settings (Appearance, Notifications, Privacy, About) and Activity all live
+  // as cells on the profile screen, reachable from the footer chip below — the
+  // drawer only carries what profile doesn't.
   const DEVICE: Item[] = [
     { label: 'Secure tunnel', icon: Lock, route: 'Vpn' },
     { label: 'Screen cast', icon: Cast, route: 'Cast' },
     { label: 'Certificates', icon: ShieldCheck, route: 'Certs', badge: certsPending },
     { label: 'Files', icon: Folder, route: 'Files' },
-    { label: 'Activity', icon: Activity, route: 'Activity' },
-  ];
-  const SETTINGS: Item[] = [
-    { label: 'Notifications', icon: Bell, route: 'Notifications', badge: unreadNotifs },
-    { label: 'Appearance', icon: Palette, route: 'Appearance' },
-    { label: 'Privacy', icon: EyeOff, route: 'Privacy' },
-    { label: 'About', icon: Info, route: 'About' },
   ];
 
   const nextTheme = themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light';
   const ThemeIcon = themeMode === 'light' ? Sun : themeMode === 'dark' ? Moon : SunMoon;
   const themeLabel = themeMode === 'system' ? 'System' : themeMode === 'dark' ? 'Dark' : 'Light';
 
+  // The app's primary navigation, so it uses the app's row — not a private copy
+  // of one. The wrapper exists only to carry the selected pill's fill and clip
+  // it; the row's geometry (and its a11y contract) belong to ListRow.
   const renderItem = (item: Item) => {
     const Icon = item.icon;
     const selected = activeRoute === item.route;
     return (
-      <Pressable
-        key={item.label}
-        onPress={() => go(item)}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}
-        accessibilityLabel={item.badge ? `${item.label}, ${item.badge} pending` : item.label}
-        style={[styles.item, selected && { backgroundColor: colors.primaryTint }]}
-      >
-        <Icon size={19} color={selected ? colors.primary : colors.text3} strokeWidth={2} />
-        <AppText variant={selected ? 'bodySemibold' : 'bodyMedium'} color={selected ? colors.primary : colors.text} style={{ fontSize: 14, flex: 1 }}>
-          {item.label}
-        </AppText>
-        {item.badge ? (
-          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-            <AppText variant="bodyBold" color="#FFFFFF" style={{ fontSize: 10.5 }}>{item.badge}</AppText>
-          </View>
-        ) : item.dot ? (
-          <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-        ) : null}
-      </Pressable>
+      <View key={item.label} style={[styles.item, selected && { backgroundColor: colors.primaryTint }]}>
+        <ListRow
+          icon={<Icon size={control.icon.lg} color={selected ? colors.primary : colors.text3} strokeWidth={2} />}
+          label={item.label}
+          labelColor={selected ? colors.primary : colors.text}
+          onPress={() => go(item)}
+          showChevron={false}
+          accessibilityLabel={item.badge ? `${item.label}, ${item.badge} pending` : item.label}
+          accessibilityState={{ selected }}
+          right={
+            item.badge ? (
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <AppText variant="bodyBold" size="micro" color={colors.white}>{item.badge}</AppText>
+              </View>
+            ) : item.dot ? (
+              <StatusDot color={colors.primary} label="Unread" labelHidden />
+            ) : null
+          }
+        />
+      </View>
     );
   };
 
@@ -126,29 +128,42 @@ export function Drawer() {
       </Animated.View>
 
       <Animated.View
+        // This drawer is a hand-rolled overlay, not a Modal, so nothing isolates
+        // it for free: without this the entire screen behind the scrim stays in
+        // the accessibility tree and a swipe walks straight into a UI the user
+        // can't see and didn't mean to reach.
+        accessibilityViewIsModal
         style={[
           styles.panel,
-          { width: W, backgroundColor: colors.surface, transform: [{ translateX: tx }], paddingTop: insets.top + 14, paddingBottom: insets.bottom + 12 },
+          {
+            width: W,
+            backgroundColor: colors.surface,
+            transform: [{ translateX: tx }],
+            paddingTop: insets.top + layout.screenTop,
+            paddingBottom: insets.bottom + layout.screenBottom,
+          },
         ]}
       >
         <View style={styles.brand}>
           <View style={[styles.logo, { backgroundColor: colors.primary }]}>
-            <ShieldCheck size={16} color="#FFFFFF" strokeWidth={2.2} />
+            <ShieldCheck size={control.icon.md} color={colors.white} strokeWidth={2.2} />
           </View>
-          <AppText variant="displaySemibold" style={{ fontSize: 15, flex: 1, letterSpacing: -0.2 }}>
-            UEM <AppText variant="displaySemibold" color={colors.primary} style={{ fontSize: 15 }}>Companion</AppText>
+          <AppText variant="displaySemibold" size="callout" style={styles.brandText}>
+            UEM <AppText variant="displaySemibold" size="callout" color={colors.primary}>Companion</AppText>
           </AppText>
-          <Pressable onPress={() => setDrawer(false)} hitSlop={8} style={[styles.close, { backgroundColor: colors.surfaceSunken }]}>
-            <X size={16} color={colors.text3} strokeWidth={2.2} />
-          </Pressable>
+          <IconButton
+            icon={<X size={control.icon.md} color={colors.text3} strokeWidth={2.2} />}
+            onPress={() => setDrawer(false)}
+            accessibilityLabel="Close menu"
+            variant="neutral"
+            size={control.height.sm}
+          />
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space[2] }} showsVerticalScrollIndicator={false}>
           <View style={styles.group}>{PRIMARY.map(renderItem)}</View>
-          <AppText variant="bodyBold" color={colors.muted2} style={styles.groupLabel}>DEVICE</AppText>
+          <AppText variant="bodyBold" size="micro" color={colors.muted2} style={styles.groupLabel}>DEVICE</AppText>
           <View style={styles.group}>{DEVICE.map(renderItem)}</View>
-          <AppText variant="bodyBold" color={colors.muted2} style={styles.groupLabel}>SETTINGS</AppText>
-          <View style={styles.group}>{SETTINGS.map(renderItem)}</View>
         </ScrollView>
 
         <View style={[styles.footer, { borderTopColor: colors.hairline }]}>
@@ -158,14 +173,12 @@ export function Drawer() {
             accessibilityLabel="Your profile"
             style={[styles.userChip, { backgroundColor: colors.surfaceSunken }]}
           >
-            <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
-              <AppText variant="displaySemibold" color="#FFFFFF" style={{ fontSize: 12.5 }}>{initials}</AppText>
+            <Avatar initials={initials} color={colors.primary} size={space[8]} textColor={isDark ? colors.canvas : colors.white} />
+            <View style={styles.userText}>
+              <AppText variant="bodySemibold" size="footnote" numberOfLines={1}>{userName}</AppText>
+              <AppText variant="body" size="micro" color={colors.muted} numberOfLines={1}>{ORG_NAME}</AppText>
             </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 13 }}>{userName}</AppText>
-              <AppText variant="body" color={colors.muted} style={{ fontSize: 11 }} numberOfLines={1}>{ORG_NAME}</AppText>
-            </View>
-            <ChevronRight size={16} color={colors.faint} strokeWidth={2.2} />
+            <ChevronRight size={control.icon.md} color={colors.faint} strokeWidth={2.2} />
           </Pressable>
           <Pressable
             onPress={() => { haptics.tap(); setThemeMode(nextTheme); }}
@@ -173,7 +186,7 @@ export function Drawer() {
             accessibilityLabel={`Theme: ${themeLabel}. Tap to change.`}
             style={[styles.themeBtn, { backgroundColor: colors.surfaceSunken }]}
           >
-            <ThemeIcon size={18} color={colors.text3} strokeWidth={2} />
+            <ThemeIcon size={control.icon.lg} color={colors.text3} strokeWidth={2} />
           </Pressable>
         </View>
       </Animated.View>
@@ -188,16 +201,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24, borderBottomRightRadius: 24,
     shadowColor: 'rgba(0,0,0,0.3)', shadowOpacity: 1, shadowRadius: 30, shadowOffset: { width: 6, height: 0 }, elevation: 24,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingBottom: 14 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: layout.gutter, paddingBottom: space[3] },
+  brandText: { flex: 1, letterSpacing: -0.2 },
   logo: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  group: { paddingHorizontal: 10, gap: 2 },
-  groupLabel: { fontSize: 10.5, letterSpacing: 0.7, marginTop: 16, marginBottom: 6, marginHorizontal: 20 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 12, paddingVertical: 11, borderRadius: 12 },
-  badge: { minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 12, borderTopWidth: 1, marginTop: 4 },
-  userChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 9 },
-  userAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  themeBtn: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  // ListRow brings its own 16 of horizontal padding, so the group only adds the
+  // remaining 4 — which lands every row icon on the same 20 gutter as the brand
+  // mark above and the group labels between.
+  group: { paddingHorizontal: layout.gutter - layout.rowPadH, gap: space[1] },
+  groupLabel: { letterSpacing: 0.7, marginTop: layout.blockGap, marginBottom: layout.labelGap, marginHorizontal: layout.gutter },
+  item: { borderRadius: 12, overflow: 'hidden' },
+  badge: { minWidth: space[5], height: space[5], borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[2] },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: space[3], paddingHorizontal: space[3], paddingTop: space[3], borderTopWidth: 1, marginTop: space[1] },
+  userChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], borderRadius: 14, paddingHorizontal: space[3], paddingVertical: space[2] },
+  userText: { flex: 1, minWidth: 0 },
+  themeBtn: { width: touch.min, height: touch.min, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

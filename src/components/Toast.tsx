@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronRight, Info, TriangleAlert } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeProvider';
@@ -7,6 +7,8 @@ import { AppText } from './Text';
 import { useAppStore } from '../state/store';
 import { navigate } from '../navigation/navigationRef';
 import { ToastMsg } from '../types';
+import { space, layout } from '../theme/spacing';
+import { radii } from '../theme/platform';
 
 /** Global, transient feedback for state-changing actions. Mounted once at the
  *  app root; reads the single `toast` slot from the store and auto-dismisses.
@@ -45,6 +47,15 @@ export function Toast() {
       Animated.spring(y, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 220, mass: 0.7 }),
       Animated.timing(op, { toValue: 1, duration: 180, useNativeDriver: true }),
     ]).start();
+
+    // This is the app's only confirmation that a state change happened, and it
+    // removes itself after 3s. Without an explicit announcement a screen reader
+    // user gets no feedback at all — the tunnel connects in total silence.
+    // `accessibilityLiveRegion` below covers Android; iOS needs this call.
+    AccessibilityInfo.announceForAccessibility(
+      toast.logged ? `${toast.message}. Logged just now by ${toast.actor ?? 'you'}.` : toast.message,
+    );
+
     // Give tappable audit toasts a touch longer to reach for.
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => runExit(), toast.logged ? 4500 : 3000);
@@ -68,12 +79,12 @@ export function Toast() {
     <View style={[styles.toast, { backgroundColor: colors.text }]}>
       <Icon size={16} color={tone} strokeWidth={2.6} style={{ marginTop: current.logged ? 1 : 0 }} />
       <View style={{ flexShrink: 1 }}>
-        <AppText variant="bodySemibold" color={colors.bg} style={{ fontSize: 13 }}>
+        <AppText variant="bodySemibold" size="footnote" color={colors.bg}>
           {current.message}
         </AppText>
         {current.logged ? (
           <View style={[styles.auditRow, { opacity: 0.72 }]}>
-            <AppText variant="body" color={colors.bg} style={{ fontSize: 11 }}>
+            <AppText variant="body" size="micro" color={colors.bg}>
               Logged · Just now · {current.actor ?? 'you'}
             </AppText>
             <ChevronRight size={12} color={colors.bg} strokeWidth={2.2} />
@@ -86,10 +97,21 @@ export function Toast() {
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[styles.host, { bottom: insets.bottom + 82, opacity: op, transform: [{ translateY: y }] }]}
+      accessibilityLiveRegion="polite"
+      // Rests on the bottom inset like everything else. It used to float at
+      // inset + 82 — clearance for a tab bar that no longer renders, leaving it
+      // marooned in mid-air over the content it was reporting on.
+      style={[
+        styles.host,
+        { bottom: insets.bottom + layout.screenBottom, opacity: op, transform: [{ translateY: y }] },
+      ]}
     >
       {current.logged ? (
-        <Pressable onPress={onPressAudit} accessibilityRole="button" accessibilityLabel={`${current.message}. View in Activity`}>
+        <Pressable
+          onPress={onPressAudit}
+          accessibilityRole="button"
+          accessibilityLabel={`${current.message}. View in Activity`}
+        >
           {body}
         </Pressable>
       ) : (
@@ -100,14 +122,14 @@ export function Toast() {
 }
 
 const styles = StyleSheet.create({
-  host: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: 20 },
+  host: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: layout.gutter },
   toast: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 9,
-    paddingVertical: 11,
-    paddingHorizontal: 15,
-    borderRadius: 13,
+    gap: space[2],
+    paddingVertical: space[3],
+    paddingHorizontal: space[4],
+    borderRadius: radii.button,
     maxWidth: 420,
     shadowColor: 'rgba(0,0,0,0.3)',
     shadowOpacity: 1,
@@ -115,5 +137,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
-  auditRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  auditRow: { flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: 2 },
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Platform, Image } from 'react-native';
+import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,16 +8,24 @@ import { Lock, X } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Button } from '../../components/Button';
-import { Entrance, Float3D, GlowOrb } from '../../components/Motion';
+import { Entrance } from '../../components/Motion';
+import { ORG_NAME } from '../../state/store';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { space, layout, touch } from '../../theme/spacing';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
 // A single, full-bleed dark welcome — one floating hero (work sealed off from
 // personal) over a gradient void. No carousel, no sign-in: just the story and
 // one way forward. Always dark, independent of the in-app theme.
+//
+// This screen is brand-owned art: DARK, the gradient, the contour arcs and the
+// white device's palette are hand-tuned for a surface that never follows the
+// in-app theme, so they stay as literals. Spacing, type and touch targets are
+// the design system's, same as everywhere else.
 const DARK = '#0B0D13';
+const CLOSE = 30;
 
 export function OnboardingScreen({ navigation }: Props) {
   const { colors } = useTheme();
@@ -33,15 +41,23 @@ export function OnboardingScreen({ navigation }: Props) {
 
       <View style={styles.header}>
         <View style={styles.brand}>
-          <Image source={require('../../../assets/logo-mark.png')} style={styles.logo} resizeMode="contain" />
-          <AppText variant="display" color="#FFFFFF" style={{ fontSize: 14, letterSpacing: -0.2 }}>
-            UEM <AppText variant="display" color={colors.primary} style={{ fontSize: 14 }}>Companion</AppText>
+          {/* The wordmark right next to it already says "UEM Companion" — an
+              announced logo would just say it twice. */}
+          <Image
+            source={require('../../../assets/logo-mark.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+          <AppText variant="display" size="body" color="#FFFFFF" style={{ letterSpacing: -0.2 }}>
+            UEM <AppText variant="display" size="body" color={colors.primary}>Companion</AppText>
           </AppText>
         </View>
         {viewing ? (
           <Pressable
             onPress={() => navigation.goBack()}
-            hitSlop={8}
+            hitSlop={touch.slopFor(CLOSE)}
             style={styles.close}
             accessibilityRole="button"
             accessibilityLabel="Close"
@@ -54,30 +70,33 @@ export function OnboardingScreen({ navigation }: Props) {
       <View style={styles.center}>
         <Entrance delay={40} from={20}>
           <View style={styles.stage}>
-            <GlowOrb size={300} colors={[colors.primary, colors.primaryStrong]} opacity={0.4} style={{ top: -6, alignSelf: 'center' }} />
             <View accessible accessibilityRole="image" accessibilityLabel="A device with work apps sealed behind a lock, personal apps kept separate" style={styles.heroWrap}>
               <ContactShadow />
-              <Float3D rotate={3} float={7} duration={4400}>
-                <SplitDeviceHero />
-              </Float3D>
+              <SplitDeviceHero />
             </View>
           </View>
         </Entrance>
 
+        {/* The old copy never said what the app DOES to your phone — it opened on
+            a slogan and then listed three unrelated features. On a BYOD device the
+            only question that matters is "what will my employer see?", so answer
+            that: what gets added, who controls it, and where their reach stops.
+            The two halves of the title map to the two halves of the illustration. */}
         <View style={styles.copy}>
           <Entrance delay={140} from={12}>
-            <AppText variant="bodySemibold" color="rgba(255,255,255,0.48)" style={styles.eyebrow}>
-              SEALED BY DESIGN
+            <AppText variant="bodySemibold" size="micro" color="rgba(255,255,255,0.48)" style={styles.eyebrow}>
+              Work profile · your device
             </AppText>
           </Entrance>
           <Entrance delay={210} from={12}>
-            <AppText variant="display" color="#FFFFFF" style={styles.title}>
-              Your work, sealed off from personal.
+            <AppText variant="display" size="display" color="#FFFFFF" accessibilityRole="header" style={styles.title}>
+              Work stays work.{'\n'}Personal stays yours.
             </AppText>
           </Entrance>
           <Entrance delay={280} from={12}>
-            <AppText variant="body" color="rgba(255,255,255,0.6)" style={styles.subtitle}>
-              Enroll once. Then connect, install what IT needs, and see exactly what your company can and can’t see.
+            <AppText variant="body" size="body" color="rgba(255,255,255,0.6)" style={styles.subtitle}>
+              Enrolling adds a separate work profile to this phone. {ORG_NAME} IT manages what’s inside it — and
+              can’t see the apps, photos or messages outside it.
             </AppText>
           </Entrance>
         </View>
@@ -98,45 +117,41 @@ export function OnboardingScreen({ navigation }: Props) {
 function SplitDeviceHero() {
   const { colors } = useTheme();
   return (
-    <View style={{ transform: [{ perspective: 800 }, { rotateX: '7deg' }] }}>
-      <View style={styles.device}>
-        <View style={styles.zone}>
-          <View style={styles.zoneLabel}>
-            <View style={[styles.zoneDot, { backgroundColor: colors.primary }]} />
-            <AppText variant="bodyBold" color={colors.primary} style={styles.zoneText}>WORK</AppText>
-          </View>
-          <View style={styles.tiles}>
-            <View style={[styles.tile, { backgroundColor: colors.primary }]} />
-            <View style={[styles.tile, { backgroundColor: colors.primary, opacity: 0.22 }]} />
-            <View style={[styles.tile, { backgroundColor: colors.primary, opacity: 0.22 }]} />
-          </View>
+    <View style={styles.device}>
+      <View style={styles.zone}>
+        <View style={styles.zoneLabel}>
+          <View style={[styles.zoneDot, { backgroundColor: colors.primary }]} />
+          <AppText variant="bodyBold" size="micro" color={colors.primary} style={styles.zoneText}>WORK</AppText>
         </View>
-
-        <View style={styles.divider}>
-          <View style={styles.line} />
-          <View style={styles.line} />
-        </View>
-
-        <View style={styles.zone}>
-          <View style={styles.zoneLabel}>
-            <View style={styles.zoneDotN} />
-            <AppText variant="bodyBold" color="#8A9098" style={styles.zoneText}>PERSONAL</AppText>
-          </View>
-          <View style={styles.tiles}>
-            <View style={styles.tileN} />
-            <View style={styles.tileN} />
-            <View style={styles.tileN} />
-          </View>
+        <View style={styles.tiles}>
+          <View style={[styles.tile, { backgroundColor: colors.primary }]} />
+          <View style={[styles.tile, { backgroundColor: colors.primary, opacity: 0.28 }]} />
+          <View style={[styles.tile, { backgroundColor: colors.primary, opacity: 0.16 }]} />
         </View>
       </View>
 
-      {/* The seal — hovers on its own float cycle above the divider. */}
-      <Float3D rotate={2.5} float={5} duration={3000} style={styles.lockFloat}>
-        <View style={[styles.lockHalo, { backgroundColor: colors.primary }]} />
-        <View style={[styles.lockBadge, { backgroundColor: colors.primary, shadowColor: colors.primaryStrong }]}>
-          <Lock size={15} color="#FFFFFF" strokeWidth={2.2} />
+      {/* The seal sits ON the divider and the rule stops either side of it, so
+          the lock reads as what separates the two halves rather than a sticker
+          hovering over them. Laid out inline — no absolute offsets to drift. */}
+      <View style={styles.divider}>
+        <View style={styles.line} />
+        <View style={[styles.lockBadge, { backgroundColor: colors.primary }]}>
+          <Lock size={14} color="#FFFFFF" strokeWidth={2.4} />
         </View>
-      </Float3D>
+        <View style={styles.line} />
+      </View>
+
+      <View style={styles.zone}>
+        <View style={styles.zoneLabel}>
+          <View style={styles.zoneDotN} />
+          <AppText variant="bodyBold" size="micro" color="#8A9098" style={styles.zoneText}>PERSONAL</AppText>
+        </View>
+        <View style={styles.tiles}>
+          <View style={styles.tileN} />
+          <View style={styles.tileN} />
+          <View style={styles.tileN} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -171,41 +186,45 @@ function ContourTexture() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 14, paddingBottom: 4 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: layout.gutter,
+    paddingTop: layout.screenTop,
+    paddingBottom: space[1],
+  },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: layout.rowGap },
   logo: { width: 28, height: 28 },
-  close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
+  close: { width: CLOSE, height: CLOSE, borderRadius: CLOSE / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
 
-  center: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  center: { flex: 1, justifyContent: 'center', paddingHorizontal: layout.gutter },
   stage: { height: 300, alignItems: 'center', justifyContent: 'center' },
   heroWrap: { width: 300, height: 288, alignItems: 'center', justifyContent: 'center' },
   contactShadow: { position: 'absolute', bottom: 2 },
 
   device: {
-    width: 196, borderRadius: 28, backgroundColor: '#FFFFFF', padding: 16,
+    width: 196, borderRadius: 28, backgroundColor: '#FFFFFF', padding: layout.cardPad,
     shadowColor: 'rgba(0,0,0,0.45)', shadowOpacity: 1, shadowRadius: 44, shadowOffset: { width: 0, height: 20 }, elevation: 14,
   },
-  zone: { gap: 9 },
-  zoneLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  zone: { gap: layout.labelGap },
+  zoneLabel: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
   zoneDot: { width: 6, height: 6, borderRadius: 3 },
   zoneDotN: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#C9CCD1' },
-  zoneText: { fontSize: 10, letterSpacing: 0.8 },
-  tiles: { flexDirection: 'row', gap: 8 },
+  zoneText: { letterSpacing: 0.8 },
+  tiles: { flexDirection: 'row', gap: space[2] },
   tile: { flex: 1, height: 44, borderRadius: 12 },
   tileN: { flex: 1, height: 44, borderRadius: 12, backgroundColor: '#EDEFF2' },
-  divider: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 46 },
+  divider: { flexDirection: 'row', alignItems: 'center', paddingVertical: space[3], gap: space[3] },
   line: { flex: 1, height: 1.5, borderRadius: 1, backgroundColor: '#E2E4E8' },
-  lockFloat: { position: 'absolute', top: 77, left: 0, right: 0, alignItems: 'center' },
-  lockHalo: { position: 'absolute', top: -11, width: 58, height: 58, borderRadius: 29, opacity: 0.22 },
-  lockBadge: {
-    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-    shadowOpacity: 0.55, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 9,
-  },
+  lockBadge: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 
-  copy: { paddingHorizontal: 4, paddingTop: 30, alignItems: 'center' },
-  eyebrow: { fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center', marginBottom: 10 },
-  title: { fontSize: 26, textAlign: 'center', marginBottom: 10, lineHeight: 32, letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, textAlign: 'center', lineHeight: 21 },
+  // Was `paddingHorizontal: 4` inside a 24 container — an effective 28 gutter
+  // that existed on this screen alone. The gutter is the container's job.
+  copy: { paddingTop: layout.sectionGap, alignItems: 'center' },
+  eyebrow: { letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center', marginBottom: layout.labelGap },
+  title: { textAlign: 'center', marginBottom: layout.captionGap, letterSpacing: -0.4 },
+  subtitle: { textAlign: 'center' },
 
-  footer: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: Platform.OS === 'ios' ? 14 : 22 },
+  footer: { paddingHorizontal: layout.gutter, paddingTop: layout.blockGap, paddingBottom: layout.screenBottom },
 });

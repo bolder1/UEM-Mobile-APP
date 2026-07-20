@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Lock, X, Megaphone, Search, Menu } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Plus, Megaphone, Search, X } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -9,10 +9,17 @@ import { Avatar } from '../../components/Avatar';
 import { BottomSheet } from '../../components/BottomSheet';
 import { SearchField } from '../../components/SearchField';
 import { EmptyState } from '../../components/EmptyState';
+import { ListRow } from '../../components/ListRow';
+import { IconTile } from '../../components/IconTile';
+import { IconButton } from '../../components/IconButton';
+import { InfoNote } from '../../components/InfoNote';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { useAppStore, ORG_NAME } from '../../state/store';
 import { haptics } from '../../utils/haptics';
 import { DIRECTORY } from '../../data/mockData';
-import { Entrance, PressableScale, CountUp } from '../../components/Motion';
+import { Entrance, PressableScale } from '../../components/Motion';
+import { space, layout, control } from '../../theme/spacing';
+import { radii } from '../../theme/platform';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,8 +30,11 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
+const FAB = 56;
+
 export function ChatListScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const chats = useAppStore((s) => s.chats);
   const messages = useAppStore((s) => s.messages);
   const unread = useAppStore((s) => s.unread);
@@ -60,116 +70,120 @@ export function ChatListScreen({ navigation }: Props) {
     navigation.navigate('ChatThread', { chatId: id });
   };
 
-  return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top']}>
-      <Pressable
-        onPress={() => { haptics.tap(); setDrawer(true); }}
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel="Open menu"
-        style={[styles.menuBtn, { backgroundColor: colors.surfaceSunken }]}
-      >
-        <Menu size={18} color={colors.text3} strokeWidth={2} />
-      </Pressable>
+  const header = (
+    <>
       <Entrance delay={0}>
-        <View style={styles.header}>
-          <AppText variant="display" style={{ fontSize: 22 }}>
-            Chat
-          </AppText>
-        </View>
+        <ScreenHeader
+          title="Chat"
+          size="display"
+          onMenu={() => {
+            haptics.tap();
+            setDrawer(true);
+          }}
+        />
       </Entrance>
 
       <Entrance delay={80}>
-        <View style={{ marginBottom: 14 }}>
-          <SearchField value={q} onChangeText={setQ} placeholder="Search people and spaces" />
+        <View style={{ marginBottom: layout.blockGap }}>
+          <SearchField value={q} onChangeText={setQ} placeholder="Search people and spaces" label="people and spaces" />
         </View>
       </Entrance>
 
       {!query ? (
         <Entrance delay={160}>
-          <PressableScale onPress={() => navigation.navigate('Notifications')}>
-            <Card style={styles.pinned}>
-              <View style={[styles.pinIcon, { backgroundColor: colors.primaryTint }]}>
-                <Megaphone size={18} color={colors.primary} strokeWidth={2} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <AppText variant="bodySemibold" style={{ fontSize: 13.5 }}>
-                  Company announcements
-                </AppText>
-                <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
-                  Broadcasts from {ORG_NAME} IT
-                </AppText>
-              </View>
-              <View style={[styles.pinPill, { backgroundColor: colors.surfaceSunken }]}>
-                <AppText variant="bodyBold" color={colors.muted2} style={{ fontSize: 10, letterSpacing: 0.9 }}>
-                  PINNED
-                </AppText>
-              </View>
-            </Card>
-          </PressableScale>
+          <Card padded={false} style={{ marginBottom: layout.cardGap, overflow: 'hidden' }}>
+            <ListRow
+              icon={
+                <IconTile bg={colors.primaryTint}>
+                  <Megaphone size={control.icon.lg} color={colors.primary} strokeWidth={2} />
+                </IconTile>
+              }
+              label="Company announcements"
+              sub={`Broadcasts from ${ORG_NAME} IT`}
+              onPress={() => navigation.navigate('Notifications')}
+              showChevron={false}
+              right={
+                <View style={[styles.pinPill, { backgroundColor: colors.surfaceSunken }]}>
+                  <AppText variant="bodyBold" size="micro" color={colors.muted2} style={{ letterSpacing: 0.9 }}>
+                    PINNED
+                  </AppText>
+                </View>
+              }
+            />
+          </Card>
         </Entrance>
       ) : null}
+    </>
+  );
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<Search size={22} color={colors.muted} strokeWidth={2} />}
-          title="No people or spaces"
-          body={`Nothing matches “${q}”.`}
-        />
-      ) : (
-        <Entrance delay={240}>
-        <Card style={styles.listCard} padded={false}>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item, index }) => (
-              <Entrance delay={Math.min(index, 7) * 55}>
-              <Pressable
+  return (
+    <View style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top + layout.screenTop }]}>
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        // This list used to be `scrollEnabled={false}` inside a non-scrolling
+        // View: every chat past the fold was simply unreachable, and the list
+        // grows at runtime as you message new people. It is now the screen's
+        // scroll container, with the header and note along for the ride.
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: layout.gutter,
+          // Clear the FAB, which floats over this list, plus the home indicator.
+          paddingBottom: insets.bottom + layout.screenBottom + FAB + layout.cardGap,
+        }}
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          <EmptyState
+            icon={<Search size={22} color={colors.muted} strokeWidth={2} />}
+            title="No people or spaces"
+            body={`Nothing matches “${q}”.`}
+          />
+        }
+        renderItem={({ item, index }) => (
+          <Entrance delay={Math.min(index, 7) * 55}>
+            <Card
+              padded={false}
+              radius={0}
+              style={[
+                styles.rowCard,
+                index === 0 && styles.rowCardFirst,
+                index === filtered.length - 1 && styles.rowCardLast,
+              ]}
+            >
+              <ListRow
+                icon={<Avatar initials={item.init} color={item.color} size={control.avatar} online={item.online} />}
+                label={item.name}
+                sub={item.lastText}
                 onPress={() => openThread(item.id)}
-                style={({ pressed }) => [
-                  styles.row,
-                  index < filtered.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline },
-                  pressed && { backgroundColor: colors.surfaceActive, transform: [{ scale: 0.985 }] },
-                ]}
-              >
-                <Avatar initials={item.init} color={item.color} size={44} online={item.online} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={styles.rowTop}>
-                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14, flexShrink: 1 }}>
-                    {item.name}
-                  </AppText>
-                  <AppText variant="body" color={colors.muted2} style={{ fontSize: 11 }}>
-                    {item.time}
-                  </AppText>
-                </View>
-                <View style={styles.rowBottom}>
-                  <AppText variant="body" color={colors.muted} numberOfLines={1} style={{ fontSize: 12.5, flex: 1 }}>
-                    {item.lastText}
-                  </AppText>
-                  {item.unread > 0 && (
-                    <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-                      <AppText variant="bodyBold" color="#FFFFFF" style={{ fontSize: 10.5 }}>
-                        {item.unread}
-                      </AppText>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </Pressable>
-              </Entrance>
-          )}
-        />
-        </Card>
-        </Entrance>
-      )}
-
-      <View style={styles.footNote}>
-        <Lock size={12} color={colors.muted2} strokeWidth={2.2} />
-        <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5 }}>
-          Work chat is end-to-end inside the work profile.
-        </AppText>
-      </View>
+                showChevron={false}
+                accessibilityLabel={
+                  `${item.name}${item.online ? ', online' : ''}. ${item.lastText}. ${item.time}.` +
+                  (item.unread > 0 ? ` ${item.unread} unread.` : '')
+                }
+                bordered={index < filtered.length - 1}
+                right={
+                  <View style={styles.meta}>
+                    <AppText variant="body" size="micro" color={colors.muted2}>
+                      {item.time}
+                    </AppText>
+                    {item.unread > 0 ? (
+                      <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+                        <AppText variant="bodyBold" size="micro" color={colors.white}>
+                          {item.unread}
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </View>
+                }
+              />
+            </Card>
+          </Entrance>
+        )}
+        ListFooterComponent={
+          filtered.length > 0 ? <InfoNote text="Work chat stays inside the work profile." /> : null
+        }
+      />
 
       <Pressable
         onPress={() => {
@@ -180,87 +194,86 @@ export function ChatListScreen({ navigation }: Props) {
         accessibilityLabel="New message"
         style={({ pressed }) => [
           styles.fab,
-          { backgroundColor: colors.primary, shadowColor: colors.primary, transform: [{ scale: pressed ? 0.93 : 1 }] },
+          {
+            bottom: insets.bottom + layout.screenBottom,
+            backgroundColor: colors.primary,
+            shadowColor: colors.primary,
+            transform: [{ scale: pressed ? 0.93 : 1 }],
+          },
         ]}
       >
-        <Plus size={24} color="#FFFFFF" strokeWidth={2.4} />
+        <Plus size={24} color={colors.white} strokeWidth={2.4} />
       </Pressable>
 
-      <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} maxHeightPct={62}>
+      <BottomSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        maxHeightPct={62}
+        accessibilityLabel="New message"
+      >
         <View style={styles.sheetHeader}>
           <View style={{ flex: 1 }}>
-            <AppText variant="displaySemibold" style={{ fontSize: 16 }}>
+            <AppText variant="displaySemibold" size="callout" accessibilityRole="header">
               New message
             </AppText>
-            <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 2 }}>
-              {ORG_NAME} directory ·{' '}
-              <CountUp value={DIRECTORY.length}>
-                {(d) => (
-                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12 }}>
-                    {d}
-                  </AppText>
-                )}
-              </CountUp>{' '}
-              people
+            <AppText variant="body" size="caption" color={colors.muted}>
+              {ORG_NAME} directory · {DIRECTORY.length} people
             </AppText>
           </View>
-          <Pressable
+          <IconButton
+            icon={<X size={control.icon.md} color={colors.text3} strokeWidth={2.4} />}
             onPress={() => setSheetOpen(false)}
-            style={[styles.closeBtn, { backgroundColor: colors.surfaceSunken }]}
-          >
-            <X size={14} color={colors.text3} strokeWidth={2.4} />
-          </Pressable>
+            accessibilityLabel="Close"
+            variant="neutral"
+            size={36}
+          />
         </View>
         <FlatList
           data={DIRECTORY}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           style={{ borderTopWidth: 1, borderTopColor: colors.hairline }}
-          contentContainerStyle={{ paddingBottom: 28 }}
           renderItem={({ item, index }) => (
             <Entrance delay={Math.min(index, 7) * 55}>
-              <PressableScale
-                onPress={() => selectContact(item.id)}
-                accessibilityLabel={`Message ${item.name}`}
-                style={[styles.directoryRow, { borderBottomColor: colors.hairline2 }]}
-              >
-                <Avatar initials={item.init} color={item.color} size={40} online />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontSize: 14 }}>
-                    {item.name}
-                  </AppText>
-                  <AppText variant="body" color={colors.muted} style={{ fontSize: 12, marginTop: 1 }}>
-                    {item.role}
-                  </AppText>
-                </View>
+              <PressableScale onPress={() => selectContact(item.id)} accessibilityLabel={`Message ${item.name}`}>
+                <ListRow
+                  icon={<Avatar initials={item.init} color={item.color} size={control.tile} />}
+                  label={item.name}
+                  sub={item.role}
+                  showChevron={false}
+                  bordered={index < DIRECTORY.length - 1}
+                />
               </PressableScale>
             </Entrance>
           )}
         />
       </BottomSheet>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 20 },
-  header: { paddingVertical: 10 },
-  menuBtn: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  pinned: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, marginBottom: 12 },
-  pinIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  pinPill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  listCard: { overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 2 },
-  unreadBadge: { minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  footNote: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, marginHorizontal: 4 },
+  root: { flex: 1 },
+  pinPill: { borderRadius: space[2], paddingHorizontal: space[2], paddingVertical: space[1] },
+  // The list reads as one card: square the inner joins, round only the ends.
+  rowCard: { borderTopWidth: 0, borderBottomWidth: 0 },
+  rowCardFirst: { borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card, borderTopWidth: 1 },
+  rowCardLast: { borderBottomLeftRadius: radii.card, borderBottomRightRadius: radii.card, borderBottomWidth: 1 },
+  meta: { alignItems: 'flex-end', gap: space[1] },
+  unreadBadge: {
+    minWidth: space[5],
+    height: space[5],
+    borderRadius: space[5] / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space[1],
+  },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 28,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    right: layout.gutter,
+    width: FAB,
+    height: FAB,
+    borderRadius: FAB / 2,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOpacity: 0.4,
@@ -268,7 +281,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
   },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingBottom: 12, paddingTop: 8 },
-  closeBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  directoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 20, borderBottomWidth: 1 },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+    paddingHorizontal: layout.sheetPad,
+    paddingBottom: layout.cardGap,
+    paddingTop: space[2],
+  },
 });

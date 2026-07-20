@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sun, Moon, Monitor, Palette } from 'lucide-react-native';
+import { Sun, Moon, Monitor } from 'lucide-react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { AppText } from '../../components/Text';
 import { Card } from '../../components/Card';
@@ -10,6 +10,7 @@ import { ThemePicker } from '../../components/ThemePicker';
 import { BrandThemePicker } from '../../components/BrandThemePicker';
 import { useAppStore } from '../../state/store';
 import { Entrance } from '../../components/Motion';
+import { layout } from '../../theme/spacing';
 import { RootStackParamList } from '../../navigation/types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -24,22 +25,19 @@ export function AppearanceScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
-      <View style={{ paddingHorizontal: 20 }}>
+      <View style={styles.gutter}>
         <ScreenHeader title="Appearance" onBack={() => navigation.goBack()} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Entrance delay={0}>
-          <View style={[styles.heroIcon, { backgroundColor: colors.primaryTint }]}>
-            <Palette size={26} color={colors.primary} strokeWidth={2} />
-          </View>
-          <AppText variant="body" color={colors.muted} style={{ fontSize: 12.5, lineHeight: 18, marginBottom: 22 }}>
+          <AppText variant="body" size="caption" color={colors.muted} style={styles.intro}>
             Choose how UEM Companion looks on this device. Changes apply immediately, everywhere in the app.
           </AppText>
         </Entrance>
 
         <Entrance delay={90}>
-          <AppText variant="bodyBold" color={colors.muted2} style={styles.sectionLabel}>
+          <AppText variant="bodyBold" size="micro" color={colors.muted2} style={styles.sectionLabel}>
             MODE
           </AppText>
           <Card style={styles.section}>
@@ -52,19 +50,19 @@ export function AppearanceScreen({ navigation }: Props) {
                 { value: 'system', label: 'System', icon: (c) => <Monitor size={18} color={c} strokeWidth={2.2} /> },
               ]}
             />
-            <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 12 }}>
+            <AppText variant="body" size="caption" color={colors.muted2} style={styles.note}>
               {themeMode === 'system' ? 'Following your device setting' : `Always ${themeMode[0].toUpperCase()}${themeMode.slice(1)}`}
             </AppText>
           </Card>
         </Entrance>
 
         <Entrance delay={180}>
-          <AppText variant="bodyBold" color={colors.muted2} style={styles.sectionLabel}>
+          <AppText variant="bodyBold" size="micro" color={colors.muted2} style={styles.sectionLabel}>
             THEME
           </AppText>
-          <Card style={{ marginBottom: 0 }}>
+          <Card>
             <BrandThemePicker value={brandTheme} onChange={setBrandTheme} />
-            <AppText variant="body" color={colors.muted2} style={{ fontSize: 11.5, marginTop: 12, lineHeight: 16 }}>
+            <AppText variant="body" size="caption" color={colors.muted2} style={styles.note}>
               Sets the accent color used for buttons, links and highlights across the app.
             </AppText>
           </Card>
@@ -76,8 +74,14 @@ export function AppearanceScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: { paddingHorizontal: 20, paddingBottom: 34 },
-  heroIcon: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  sectionLabel: { fontSize: 10.5, letterSpacing: 1.1, marginBottom: 10, marginHorizontal: 2 },
-  section: { marginBottom: 22 },
+  gutter: { paddingHorizontal: layout.gutter },
+  // SafeAreaView already owns the bottom inset.
+  body: { paddingHorizontal: layout.gutter, paddingBottom: layout.screenBottom },
+  // The intro sits above a section label, so it takes the section break.
+  intro: { marginBottom: layout.sectionGap },
+  // The gutter is `layout.gutter`, full stop — the old marginHorizontal: 2 here
+  // quietly made it 22 for this one element.
+  sectionLabel: { letterSpacing: 1.1, marginBottom: layout.labelGap },
+  section: { marginBottom: layout.sectionGap },
+  note: { marginTop: layout.labelGap },
 });

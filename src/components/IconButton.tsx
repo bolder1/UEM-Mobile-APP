@@ -51,7 +51,9 @@ export function IconButton({ icon, onPress, accessibilityLabel, variant = 'prima
       onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 9 }).start()}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      // aria-* as well: react-native-web ignores accessibilityState outright.
       accessibilityState={{ disabled: !!disabled }}
+      aria-disabled={!!disabled}
       android_ripple={ripple('rgba(0,0,0,0.09)', true) ?? undefined}
       hitSlop={4}
       style={style}
